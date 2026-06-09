@@ -8391,6 +8391,24 @@ static CGFloat iTermDimmingAmount(PSMTabBarControl *tabView) {
     [self notifyTmuxOfWindowResize];
 }
 
+// (Fork) The “launch hermes” button in the left tab bar was clicked: open a new
+// tab running the hermes agentic CLI. Use the absolute path to the user’s hermes
+// launcher so it does not depend on the custom-command PATH.
+- (void)tabViewDidClickHermesButton:(PSMTabBarControl *)tabView {
+    Profile *profile = [[ProfileModel sharedInstance] defaultBookmark];
+    if (!profile) {
+        return;
+    }
+    NSString *hermesPath = [NSHomeDirectory() stringByAppendingPathComponent:@".local/bin/hermes"];
+    [self createTabWithProfile:profile
+                   withCommand:hermesPath
+                   environment:nil
+                      tabIndex:nil
+             previousDirectory:nil
+                        parent:nil
+                    completion:nil];
+}
+
 - (BOOL)themeSupportsAlternateDragModes {
     iTermPreferencesTabStyle preferredStyle = [iTermPreferences intForKey:kPreferenceKeyTabStyle];
     switch (preferredStyle) {
@@ -13308,6 +13326,12 @@ typedef NS_ENUM(NSUInteger, iTermBroadcastCommand) {
 
 - (void)tab:(PTYTab *)tab didChangeProcessingStatus:(BOOL)isProcessing {
     [_contentView.tabBarControl setIsProcessing:isProcessing forTabWithIdentifier:tab];
+}
+
+- (void)tabDidChangeHermesState:(PTYTab *)tab {
+    // (Fork) The hermes working/idle dot is pulled from the tab via
+    // psmTabStatusColor at draw time, so a redraw is all that’s needed.
+    [_contentView.tabBarControl setNeedsDisplay:YES];
 }
 
 - (void)tab:(PTYTab *)tab didChangeIcon:(NSImage *)icon {

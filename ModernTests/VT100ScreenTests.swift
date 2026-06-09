@@ -2214,7 +2214,11 @@ class FakeSession: NSObject, VT100ScreenDelegate {
     func screenSetWindowTitle(_ title: String) {
 
     }
-    
+
+    func screenSetHermesState(_ state: String) {
+
+    }
+
     func screenWindowTitle() -> String? {
         "Window Title"
     }

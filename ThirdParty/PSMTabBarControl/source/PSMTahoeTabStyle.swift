@@ -1479,6 +1479,29 @@ class PSMTahoeTabStyle: NSObject, PSMTabStyle {
         return emoji
     }
 
+    // (Fork) The agentic-CLI status color for a cell (red = working, green =
+    // idle), or nil if the tab has no such status.
+    private func statusColor(for cell: PSMTabBarCell) -> NSColor? {
+        let tab = (cell.representedObject as? NSTabViewItem)?.identifier as? PSMTabBarControlRepresentedObjectIdentifierProtocol
+        return tab?.psmTabStatusColor?()
+    }
+
+    // (Fork) Draws a small status dot as a badge at the bottom-right of an emoji
+    // box, mirroring the Yosemite style.
+    private func drawStatusDot(for cell: PSMTabBarCell, near rect: NSRect) {
+        guard let color = statusColor(for: cell) else {
+            return
+        }
+        let dotSide: CGFloat = 7.0
+        let dotRect = NSRect(x: rect.maxX - dotSide, y: rect.minY + 1.0, width: dotSide, height: dotSide)
+        let path = NSBezierPath(ovalIn: dotRect)
+        color.setFill()
+        path.fill()
+        path.lineWidth = 0.5
+        NSColor(white: 0.0, alpha: 0.25).setStroke()
+        path.stroke()
+    }
+
     // (Fork) Draws an emoji centered in a rect at the given point size.
     private func drawEmoji(_ emoji: String, centeredIn rect: NSRect, pointSize: CGFloat) {
         let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: pointSize)]
@@ -1499,6 +1522,11 @@ class PSMTahoeTabStyle: NSObject, PSMTabStyle {
            cell.frame.size.width < PSMTahoeIconsOnlyWidthThreshold {
             if let emoji = emoji(for: cell) {
                 drawEmoji(emoji, centeredIn: cell.frame, pointSize: 18)
+                let side = kPSMTabBarIconWidth
+                let emojiBox = NSRect(x: cell.frame.minX + (cell.frame.width - side) / 2.0,
+                                      y: cell.frame.minY + (cell.frame.height - side) / 2.0,
+                                      width: side, height: side)
+                drawStatusDot(for: cell, near: emojiBox)
             } else if cell.hasIcon, let icon = icon(cell: cell) {
                 let r = NSRect(x: cell.frame.minX + (cell.frame.width - kPSMTabBarIconWidth) / 2.0,
                                y: cell.frame.minY + (cell.frame.height - kPSMTabBarIconWidth) / 2.0,
@@ -1627,6 +1655,7 @@ class PSMTahoeTabStyle: NSObject, PSMTabStyle {
                     rect.origin.y = cell.frame.minY + (cell.frame.height - kPSMTabBarIconWidth) / 2.0 + orientationShift
                     rect.size.height = kPSMTabBarIconWidth
                     self.drawEmoji(emoji, centeredIn: rect, pointSize: 14)
+                    self.drawStatusDot(for: cell, near: rect)
                 },
                 FixedSpacerLO(name: Name.preLabelSpace.rawValue, width: 2.0, priority: Priority.required.rawValue, gravity: .left)
             ]))

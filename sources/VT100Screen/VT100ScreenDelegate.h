@@ -395,6 +395,10 @@ typedef NS_ENUM(NSUInteger, PTYSessionResizePermission) {
 - (void)screenSetUserVar:(NSString * _Nonnull)kvp;
 - (void)screenSetProfileProperties:(NSDictionary * _Nonnull)dict;
 
+// (Fork) OSC 1337 ; HermesState=working|idle — an agentic CLI reporting whether
+// it is busy. Drives a per-tab status indicator.
+- (void)screenSetHermesState:(NSString * _Nonnull)state;
+
 - (BOOL)screenShouldReduceFlicker;
 - (NSInteger)screenUnicodeVersion;
 - (void)screenSetUnicodeVersion:(NSInteger)unicodeVersion;

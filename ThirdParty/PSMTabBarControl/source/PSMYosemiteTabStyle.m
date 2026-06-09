@@ -896,6 +896,35 @@ const void *PSMTabStyleDarkColorKey = "dark";
     return nil;
 }
 
+// (Fork) The agentic-CLI status color for a cell (red = working, green = idle),
+// or nil if the tab has no such status.
+- (NSColor *)statusColorForTabCell:(PSMTabBarCell *)cell {
+    id identifier = [[cell representedObject] identifier];
+    if ([identifier respondsToSelector:@selector(psmTabStatusColor)]) {
+        return [identifier psmTabStatusColor];
+    }
+    return nil;
+}
+
+// (Fork) Draws a small status dot as a badge at the bottom-right of an emoji box.
+- (void)drawStatusDotForTabCell:(PSMTabBarCell *)cell nearRect:(NSRect)rect {
+    NSColor *statusColor = [self statusColorForTabCell:cell];
+    if (!statusColor) {
+        return;
+    }
+    const CGFloat dotSide = 7.0;
+    const NSRect dotRect = NSMakeRect(NSMaxX(rect) - dotSide,
+                                      NSMinY(rect) + 1.0,
+                                      dotSide,
+                                      dotSide);
+    NSBezierPath *path = [NSBezierPath bezierPathWithOvalInRect:dotRect];
+    [statusColor setFill];
+    [path fill];
+    path.lineWidth = 0.5;
+    [[NSColor colorWithWhite:0.0 alpha:0.25] setStroke];
+    [path stroke];
+}
+
 // (Fork) Draws an emoji string centered in a rect at the given point size and
 // alpha. Used both for the icons-only collapsed glyph and the expanded prefix.
 - (void)drawEmoji:(NSString *)emoji
@@ -933,6 +962,12 @@ const void *PSMTabStyleDarkColorKey = "dark";
         NSString *emoji = [self emojiForTabCell:cell];
         if (emoji.length > 0) {
             [self drawEmoji:emoji centeredInRect:cellFrame pointSize:18 alpha:1.0];
+            const NSRect emojiBox =
+                NSMakeRect(NSMinX(cellFrame) + (NSWidth(cellFrame) - kPSMTabBarIconWidth) / 2.0,
+                           NSMinY(cellFrame) + (NSHeight(cellFrame) - kPSMTabBarIconWidth) / 2.0,
+                           kPSMTabBarIconWidth,
+                           kPSMTabBarIconWidth);
+            [self drawStatusDotForTabCell:cell nearRect:emojiBox];
         } else {
             NSImage *icon = [(id)[[cell representedObject] identifier] icon];
             if (icon) {
@@ -1065,6 +1100,7 @@ const void *PSMTabStyleDarkColorKey = "dark";
                        kPSMTabBarIconWidth,
                        kPSMTabBarIconWidth);
         [self drawEmoji:tabEmoji centeredInRect:emojiBox pointSize:14 alpha:1.0];
+        [self drawStatusDotForTabCell:cell nearRect:emojiBox];
         labelPosition = MAX(labelPosition, NSMaxX(emojiBox) + kPSMTabBarCellPadding);
     }
 

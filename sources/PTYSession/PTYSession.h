@@ -317,6 +317,8 @@ typedef enum {
 - (void)sessionDidReportSelectedTmuxPane:(PTYSession *)session;
 - (void)sessionDidUpdatePaneTitle:(PTYSession *)session;
 - (void)sessionDidSetWindowTitle:(NSString *)title;
+// (Fork) The session’s hermes working/idle state changed.
+- (void)sessionHermesStateDidChange:(PTYSession *)session;
 - (void)sessionJobDidChange:(PTYSession *)session;
 - (void)sessionEditActions;
 - (void)sessionEditSnippets;
@@ -358,6 +360,18 @@ backgroundColor:(nullable NSColor *)backgroundColor;
 @end
 
 @class SessionView;
+
+// (Fork) Whether a hermes-style agentic CLI running in this session is busy.
+// Driven by an in-band OSC 1337 ; HermesState=working|idle escape code emitted
+// by the agent itself, so it reflects the agent’s real state rather than a
+// heuristic. iTermHermesStateUnknown means no such signal was ever received
+// (the common case for ordinary shells), so no indicator is shown.
+typedef NS_ENUM(NSInteger, iTermHermesState) {
+    iTermHermesStateUnknown = 0,
+    iTermHermesStateWorking,
+    iTermHermesStateIdle
+};
+
 @interface PTYSession : NSResponder <
     iTermEchoProbeDelegate,
     iTermFindDriverDelegate,
@@ -371,6 +385,9 @@ backgroundColor:(nullable NSColor *)backgroundColor;
     TmuxGatewayDelegate,
     VT100ScreenDelegate>
 @property(nonatomic, weak, nullable) id<PTYSessionDelegate> delegate;
+
+// (Fork) Latest hermes working/idle state reported via OSC 1337;HermesState.
+@property(nonatomic, readonly) iTermHermesState hermesState;
 
 // A session is active when it's in a visible tab and it needs periodic redraws (something is
 // blinking, it isn't idle, etc), or when a background tab is updating its tab label. This controls

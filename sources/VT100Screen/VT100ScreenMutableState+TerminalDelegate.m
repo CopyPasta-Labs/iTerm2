@@ -1894,6 +1894,13 @@ typedef struct {
     } name:@"set user var"];
 }
 
+- (void)terminalSetHermesState:(NSString *)state {
+    DLog(@"begin %@", state);
+    [self addSideEffect:^(id<VT100ScreenDelegate> delegate) {
+        [delegate screenSetHermesState:state];
+    } name:@"set hermes state"];
+}
+
 - (void)terminalResetColor:(VT100TerminalColorIndex)n {
     DLog(@"begin %@", @(n));
     const int key = [self colorMapKeyForTerminalColorIndex:n];

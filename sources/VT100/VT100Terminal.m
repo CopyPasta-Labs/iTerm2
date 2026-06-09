@@ -4325,6 +4325,10 @@ static NSString *VT100GetURLParamForKey(NSString *params, NSString *key) {
         [_delegate terminalSetBadgeFormat:value];
     } else if ([key isEqualToString:@"SetUserVar"]) {
         [_delegate terminalSetUserVar:value];
+    } else if ([key isEqualToString:@"HermesState"]) {
+        // (Fork) OSC 1337 ; HermesState=working|idle — an agentic CLI (hermes)
+        // reporting whether it is busy, used to drive a per-tab status dot.
+        [_delegate terminalSetHermesState:value];
     } else if ([key isEqualToString:@"ReportCellSize"]) {
         if ([_delegate terminalShouldSendReport:YES]) {
             double floatScale;

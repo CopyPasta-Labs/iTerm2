@@ -27,6 +27,14 @@ Major New Features:
   “Command Center” tab that cannot be closed.
   For now it just shows a large smiley face;
   it is a placeholder for a coming dashboard.
+- (Fork) A robot button next to the hamburger
+  opens a new tab running the hermes agent.
+- (Fork) A hermes tab shows a status dot next
+  to its emoji: red while the agent is working
+  and green while it is idle, waiting for
+  input. It is driven by an in-band escape
+  code hermes emits, not a guess, so it is
+  exact. See docs/hermes-state-detection.md.
 - In the Jobs view (toolbelt and status bar
   popover) hovering a row shows the full
   command as a tooltip, and pressing space

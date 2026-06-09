@@ -176,12 +176,45 @@ static NSImage *PSMCollapseHamburgerImage(void) {
     return image;
 }
 
+// (Fork) Returns a small template robot-head glyph for the “launch hermes”
+// button (a rounded head with an antenna and two eyes). Template, so it tints
+// to match the tab bar like the hamburger.
+static NSImage *PSMHermesLaunchImage(void) {
+    const CGFloat side = 14;
+    NSImage *image = [NSImage imageWithSize:NSMakeSize(side, side)
+                                    flipped:NO
+                             drawingHandler:^BOOL(NSRect dstRect) {
+        [[NSColor blackColor] setStroke];
+        [[NSColor blackColor] setFill];
+        const CGFloat inset = side * 0.18;
+        const NSRect head = NSMakeRect(inset, side * 0.12, side - 2 * inset, side * 0.58);
+        NSBezierPath *headPath = [NSBezierPath bezierPathWithRoundedRect:head xRadius:2.0 yRadius:2.0];
+        headPath.lineWidth = 1.2;
+        [headPath stroke];
+        NSBezierPath *antenna = [NSBezierPath bezierPath];
+        antenna.lineWidth = 1.2;
+        antenna.lineCapStyle = NSLineCapStyleRound;
+        [antenna moveToPoint:NSMakePoint(side / 2.0, NSMaxY(head))];
+        [antenna lineToPoint:NSMakePoint(side / 2.0, side * 0.85)];
+        [antenna stroke];
+        [[NSBezierPath bezierPathWithOvalInRect:NSMakeRect(side / 2.0 - 1.2, side * 0.85 - 1.2, 2.4, 2.4)] fill];
+        const CGFloat eyeR = 1.25;
+        const CGFloat eyeY = NSMidY(head) - eyeR;
+        [[NSBezierPath bezierPathWithOvalInRect:NSMakeRect(NSMinX(head) + NSWidth(head) * 0.30 - eyeR, eyeY, 2 * eyeR, 2 * eyeR)] fill];
+        [[NSBezierPath bezierPathWithOvalInRect:NSMakeRect(NSMinX(head) + NSWidth(head) * 0.70 - eyeR, eyeY, 2 * eyeR, 2 * eyeR)] fill];
+        return YES;
+    }];
+    image.template = YES;
+    return image;
+}
+
 @implementation PSMTabBarControl {
     // control basics
     NSMutableArray<PSMTabBarCell *> *_cells; // the cells that draw the tabs
     NSButton *_overflowPopUpButton; // for too many tabs
     PSMRolloverButton *_addTabButton;
     PSMRolloverButton *_collapseButton; // (Fork) collapse/expand the vertical tab list
+    PSMRolloverButton *_hermesButton; // (Fork) launch a hermes agent in a new tab
 
     // drawing style
     NSTimer *_animationTimer;
@@ -422,6 +455,7 @@ static NSImage *PSMCollapseHamburgerImage(void) {
     [_tabView release];
     [_addTabButton release];
     [_collapseButton release];
+    [_hermesButton release];
     [partnerView release];
     [_lastMouseDownEvent release];
     [_lastMiddleMouseDownEvent release];
@@ -1654,10 +1688,22 @@ static NSImage *PSMCollapseHamburgerImage(void) {
     }
 
     // (Fork) Pin the collapse/expand chevron to the top of a vertical tab bar.
+    // When a “launch hermes” button is also available, split the top strip so
+    // the chevron sits on the left and the hermes button on the right.
     if ([self shouldShowCollapseButton]) {
-        [self _setupCollapseButton:NSMakeRect(0, 0, self.frame.size.width, kPSMCollapseButtonHeight)];
+        const CGFloat stripHeight = kPSMCollapseButtonHeight;
+        const CGFloat stripWidth = self.frame.size.width;
+        if ([self shouldShowHermesButton]) {
+            const CGFloat half = floor(stripWidth / 2.0);
+            [self _setupCollapseButton:NSMakeRect(0, 0, half, stripHeight)];
+            [self _setupHermesButton:NSMakeRect(half, 0, stripWidth - half, stripHeight)];
+        } else {
+            [self _setupCollapseButton:NSMakeRect(0, 0, stripWidth, stripHeight)];
+            [_hermesButton setHidden:YES];
+        }
     } else {
         [_collapseButton setHidden:YES];
+        [_hermesButton setHidden:YES];
     }
 }
 
@@ -1834,6 +1880,13 @@ static NSImage *PSMCollapseHamburgerImage(void) {
             [self.delegate respondsToSelector:@selector(tabViewDidClickTabBarCollapseButton:)]);
 }
 
+// (Fork) The “launch hermes” button shares the top strip with the collapse
+// chevron and only appears on a vertical tab bar when the delegate can open one.
+- (BOOL)shouldShowHermesButton {
+    return (_orientation == PSMTabBarVerticalOrientation &&
+            [self.delegate respondsToSelector:@selector(tabViewDidClickHermesButton:)]);
+}
+
 // (Fork) Lazily create and position the collapse/expand hamburger button at the
 // top of a vertical tab bar. The same hamburger glyph is shown regardless of
 // width; clicking it toggles the collapsed (icons-only) state.
@@ -1864,6 +1917,38 @@ static NSImage *PSMCollapseHamburgerImage(void) {
 - (void)collapseButtonAction:(id)sender {
     if ([self.delegate respondsToSelector:@selector(tabViewDidClickTabBarCollapseButton:)]) {
         [self.delegate tabViewDidClickTabBarCollapseButton:self];
+    }
+}
+
+// (Fork) Lazily create and position the “launch hermes” button next to the
+// collapse chevron at the top of a vertical tab bar.
+- (void)_setupHermesButton:(NSRect)frame {
+    if (!_hermesButton) {
+        _hermesButton = [[PSMRolloverButton alloc] initWithFrame:frame];
+        _hermesButton.allowDrags = NO;
+        [_hermesButton setTitle:@""];
+        [_hermesButton setImagePosition:NSImageOnly];
+        [_hermesButton setButtonType:NSButtonTypeMomentaryChange];
+        [_hermesButton setBordered:NO];
+        [_hermesButton setBezelStyle:NSBezelStyleShadowlessSquare];
+        _hermesButton.action = @selector(hermesButtonAction:);
+        _hermesButton.target = self;
+        _hermesButton.accessibilityLabel = @"Open a new hermes agent tab";
+    }
+    if (![[self subviews] containsObject:_hermesButton]) {
+        [self addSubview:_hermesButton];
+    }
+    NSImage *robot = PSMHermesLaunchImage();
+    [_hermesButton setUsualImage:robot];
+    [_hermesButton setRolloverImage:robot];
+    [_hermesButton setFrame:frame];
+    [_hermesButton setHidden:NO];
+    [_hermesButton setNeedsDisplay:YES];
+}
+
+- (void)hermesButtonAction:(id)sender {
+    if ([self.delegate respondsToSelector:@selector(tabViewDidClickHermesButton:)]) {
+        [self.delegate tabViewDidClickHermesButton:self];
     }
 }
 

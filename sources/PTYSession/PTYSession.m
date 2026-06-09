@@ -14667,6 +14667,25 @@ typedef NS_ENUM(NSUInteger, PTYSessionTmuxReport) {
     [self.delegate sessionDidSetWindowTitle:title];
 }
 
+- (void)screenSetHermesState:(NSString *)state {
+    // (Fork) Map the in-band OSC 1337 ; HermesState=working|idle signal onto a
+    // typed per-session state. Unknown values are ignored so a stray code can’t
+    // clear the indicator.
+    iTermHermesState newState;
+    if ([state isEqualToString:@"working"]) {
+        newState = iTermHermesStateWorking;
+    } else if ([state isEqualToString:@"idle"]) {
+        newState = iTermHermesStateIdle;
+    } else {
+        return;
+    }
+    if (newState == _hermesState) {
+        return;
+    }
+    _hermesState = newState;
+    [self.delegate sessionHermesStateDidChange:self];
+}
+
 - (NSString *)screenWindowTitle {
     return [self windowTitle];
 }

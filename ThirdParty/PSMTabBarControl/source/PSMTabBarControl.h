@@ -99,6 +99,10 @@ extern PSMTabBarControlOptionKey PSMTabBarControlOptionPUAFontProvider;  // id<P
 // (Fork) When YES, this tab's cell never shows a close button (used by the
 // uncloseable Command Center tab).
 - (BOOL)psmTabHidesCloseButton;
+// (Fork) When non-nil, a small status dot is drawn next to the tab’s emoji in
+// this color. Used to show an agentic CLI’s working (red) / idle (green) state.
+// Nil means no dot (the common case for ordinary shells).
+- (nullable NSColor *)psmTabStatusColor;
 @end
 
 @protocol PSMTabBarControlDelegate<NSTabViewDelegate>
@@ -163,6 +167,9 @@ extern PSMTabBarControlOptionKey PSMTabBarControlOptionPUAFontProvider;  // id<P
 - (void)tabViewDidClickAddTabButton:(PSMTabBarControl *)tabView;
 // (Fork) The collapse/expand chevron at the top of a vertical tab bar was clicked.
 - (void)tabViewDidClickTabBarCollapseButton:(PSMTabBarControl *)tabView;
+// (Fork) The “launch hermes” button next to the collapse chevron was clicked;
+// open a new tab running the hermes agentic CLI.
+- (void)tabViewDidClickHermesButton:(PSMTabBarControl *)tabView;
 - (BOOL)tabViewShouldDragWindow:(NSTabView *)tabView event:(NSEvent *)event;
 - (BOOL)tabViewShouldAllowDragOnAddTabButton:(NSTabView *)tabView;
 - (CGFloat)tabViewDesiredTabBarHeight:(NSTabView *)tabView;
