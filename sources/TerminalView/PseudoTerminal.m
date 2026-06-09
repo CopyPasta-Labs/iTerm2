@@ -8370,6 +8370,13 @@ static CGFloat iTermDimmingAmount(PSMTabBarControl *tabView) {
     }
 }
 
+// (Fork) The collapse/expand chevron in the left tab bar was clicked: toggle the
+// bar between its normal width and the narrow icons-only strip for this window.
+- (void)tabViewDidClickTabBarCollapseButton:(PSMTabBarControl *)tabView {
+    [_contentView toggleLeftTabBarCollapsed];
+    [self notifyTmuxOfWindowResize];
+}
+
 - (BOOL)themeSupportsAlternateDragModes {
     iTermPreferencesTabStyle preferredStyle = [iTermPreferences intForKey:kPreferenceKeyTabStyle];
     switch (preferredStyle) {

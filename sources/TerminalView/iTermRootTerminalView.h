@@ -146,6 +146,10 @@ extern const NSInteger iTermRootTerminalViewWindowNumberLabelWidth;
 
 - (void)willShowTabBar;
 
+// (Fork) Toggle the left tab bar between its normal width and a narrow
+// icons-only strip for this window. Driven by the in-bar chevron button.
+- (void)toggleLeftTabBarCollapsed;
+
 - (void)didChangeCompactness;
 
 - (void)windowTitleDidChangeTo:(NSString *)title;

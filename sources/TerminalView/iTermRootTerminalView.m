@@ -45,6 +45,11 @@ const CGFloat iTermStoplightHotboxWidth = iTermStandardButtonsViewWidth + 28 + 2
 const CGFloat iTermStoplightHotboxHeight = iTermStandardButtonsViewHeight + 8;
 const CGFloat kDivisionViewHeight = 1;
 
+// (Fork) Width of the left tab bar when collapsed to an icons-only strip via the
+// in-bar chevron button. Intentionally below minimumTabBarWidth — collapsing
+// bypasses that clamp so the strip can be narrower than a normal vertical bar.
+static const CGFloat kCollapsedLeftTabBarWidth = 44;
+
 const NSInteger iTermRootTerminalViewWindowNumberLabelMargin = 6;
 const NSInteger iTermRootTerminalViewWindowNumberLabelWidth = 40;
 
@@ -131,6 +136,10 @@ NS_CLASS_AVAILABLE_MAC(10_14)
 
 @implementation iTermRootTerminalView {
     BOOL _tabViewFrameReduced;
+    // (Fork) When YES, the user collapsed the left tab bar to a narrow icons-only
+    // strip for this window via the in-bar chevron button. Per-window; not
+    // persisted, so it resets to expanded on relaunch.
+    BOOL _leftTabBarCollapsed;
     BOOL _haveShownToolbelt;
     iTermStoplightHotbox *_stoplightHotbox;
     iTermStandardWindowButtonsView *_standardWindowButtonsView;
@@ -1659,12 +1668,23 @@ NS_CLASS_AVAILABLE_MAC(10_14)
 }
 
 - (void)setLeftTabBarWidthFromPreferredWidth {
+    if (_leftTabBarCollapsed) {
+        // Collapsed: force a narrow icons-only strip, ignoring both the preferred
+        // width and the usual minimumTabBarWidth clamp. The preferred width is left
+        // untouched so expanding restores the user's previous width.
+        _leftTabBarWidth = kCollapsedLeftTabBarWidth;
+        return;
+    }
     _leftTabBarWidth = [self leftTabBarWidthForPreferredWidth:_leftTabBarPreferredWidth];
 }
 
 - (void)willShowTabBar {
-    _leftTabBarWidth = [self leftTabBarWidthForPreferredWidth:_leftTabBarPreferredWidth
-                                                 contentWidth:self.bounds.size.width];
+    [self setLeftTabBarWidthFromPreferredWidth];
+}
+
+- (void)toggleLeftTabBarCollapsed {
+    _leftTabBarCollapsed = !_leftTabBarCollapsed;
+    [self layoutSubviews];
 }
 
 #pragma mark - Status Bar Layout

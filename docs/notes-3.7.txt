@@ -17,6 +17,11 @@ Major New Features:
 - (Fork) View > Show Tab Bar collapses or
   restores the tab bar for the current
   window.
+- (Fork) A chevron at the top of the left
+  tab bar collapses the tab list to a narrow
+  icons-only strip and expands it again. Each
+  tab gets its own emoji, shown as a prefix
+  and as the glyph when collapsed.
 - In the Jobs view (toolbelt and status bar
   popover) hovering a row shows the full
   command as a tooltip, and pressing space

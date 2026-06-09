@@ -92,6 +92,10 @@ extern PSMTabBarControlOptionKey PSMTabBarControlOptionPUAFontProvider;  // id<P
 - (void)setObjectCount:(int)objectCount;
 - (nullable NSImage *)psmTabGraphic;
 - (nullable NSColor *)psmTabStatusSubtitleColor;
+// (Fork) A short emoji that identifies this tab. Drawn as a prefix before the
+// title normally, and as the sole centered glyph when the tab bar is collapsed
+// to its icons-only strip.
+- (nullable NSString *)psmTabEmoji;
 @end
 
 @protocol PSMTabBarControlDelegate<NSTabViewDelegate>
@@ -154,6 +158,8 @@ extern PSMTabBarControlOptionKey PSMTabBarControlOptionPUAFontProvider;  // id<P
 - (nullable NSTabViewItem *)tabView:(NSTabView *)tabView unknownObjectWasDropped:(id <NSDraggingInfo>)sender;
 - (nullable id)tabView:(PSMTabBarControl *)tabView valueOfOption:(PSMTabBarControlOptionKey)option;
 - (void)tabViewDidClickAddTabButton:(PSMTabBarControl *)tabView;
+// (Fork) The collapse/expand chevron at the top of a vertical tab bar was clicked.
+- (void)tabViewDidClickTabBarCollapseButton:(PSMTabBarControl *)tabView;
 - (BOOL)tabViewShouldDragWindow:(NSTabView *)tabView event:(NSEvent *)event;
 - (BOOL)tabViewShouldAllowDragOnAddTabButton:(NSTabView *)tabView;
 - (CGFloat)tabViewDesiredTabBarHeight:(NSTabView *)tabView;

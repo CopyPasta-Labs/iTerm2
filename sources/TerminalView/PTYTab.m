@@ -1263,6 +1263,19 @@ static void SetAgainstGrainDim(BOOL isVertical, NSSize *dest, CGFloat value) {
     return self.activeSession.tabGraphic;
 }
 
+// (Fork) A distinct emoji per tab, derived from the tab's unique id so it is
+// stable for the tab's life and differs from its neighbors. Used by the tab bar
+// as a per-tab glyph (title prefix when expanded, sole glyph when collapsed).
+- (NSString *)psmTabEmoji {
+    static NSArray<NSString *> *palette;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        palette = @[ @"🤖", @"🧠", @"⚡️", @"🔧", @"📦", @"🚀",
+                     @"🛰️", @"🔭", @"🧩", @"🎛️", @"🧪", @"🛠️" ];
+    });
+    return palette[self.uniqueId % palette.count];
+}
+
 - (NSColor *)psmTabStatusSubtitleColor {
     if (!_aggregatedTabStatus.hasActiveStatus ||
         !_aggregatedTabStatus.hasStatusTextColor ||

@@ -21,6 +21,11 @@
 #define kPSMMetalObjectCounterRadius 7.0
 #define kPSMMetalCounterMinWidth 20
 
+// (Fork) At or below this vertical-bar cell width, draw the tab icons-only (just
+// the per-tab emoji, centered). Keep in sync with kPSMCollapsedWidthThreshold in
+// PSMTabBarControl.m, which picks the collapse chevron direction.
+static const CGFloat kPSMIconsOnlyWidthThreshold = 70;
+
 @interface NSImage (External)
 - (NSImage *)it_cachingImageWithTintColor:(NSColor *)tintColor key:(const void *)key;
 @end
@@ -881,11 +886,77 @@
 const void *PSMTabStyleLightColorKey = "light";
 const void *PSMTabStyleDarkColorKey = "dark";
 
+// (Fork) The per-tab emoji used as the tab's glyph, or nil if the represented
+// object doesn't supply one.
+- (NSString *)emojiForTabCell:(PSMTabBarCell *)cell {
+    id identifier = [[cell representedObject] identifier];
+    if ([identifier respondsToSelector:@selector(psmTabEmoji)]) {
+        return [identifier psmTabEmoji];
+    }
+    return nil;
+}
+
+// (Fork) Draws an emoji string centered in a rect at the given point size and
+// alpha. Used both for the icons-only collapsed glyph and the expanded prefix.
+- (void)drawEmoji:(NSString *)emoji
+   centeredInRect:(NSRect)rect
+        pointSize:(CGFloat)pointSize
+            alpha:(CGFloat)alpha {
+    if (emoji.length == 0 || alpha <= 0) {
+        return;
+    }
+    NSDictionary *attrs = @{ NSFontAttributeName: [NSFont systemFontOfSize:pointSize] };
+    NSAttributedString *string = [[NSAttributedString alloc] initWithString:emoji attributes:attrs];
+    const NSSize size = [string size];
+    const NSRect target = NSMakeRect(NSMinX(rect) + floor((NSWidth(rect) - size.width) / 2.0),
+                                     NSMinY(rect) + floor((NSHeight(rect) - size.height) / 2.0),
+                                     size.width,
+                                     size.height);
+    CGContextRef ctx = [NSGraphicsContext currentContext].CGContext;
+    CGContextSaveGState(ctx);
+    CGContextSetAlpha(ctx, alpha);
+    [string drawInRect:target];
+    CGContextRestoreGState(ctx);
+}
+
 - (void)drawInteriorWithTabCell:(PSMTabBarCell *)cell
                          inView:(NSView*)controlView
                 highlightAmount:(CGFloat)highlightAmount {
     NSRect cellFrame = [cell frame];
+
+    // (Fork) Icons-only mode: when the vertical tab bar is collapsed to a narrow
+    // strip, draw just the per-tab emoji centered and skip the close button,
+    // status icon, counter and title. The cell background/selection was already
+    // drawn by drawTabCell:, so the active tab still highlights here.
+    if (_orientation == PSMTabBarVerticalOrientation &&
+        cellFrame.size.width < kPSMIconsOnlyWidthThreshold) {
+        NSString *emoji = [self emojiForTabCell:cell];
+        if (emoji.length > 0) {
+            [self drawEmoji:emoji centeredInRect:cellFrame pointSize:18 alpha:1.0];
+        } else {
+            NSImage *icon = [(id)[[cell representedObject] identifier] icon];
+            if (icon) {
+                const NSRect iconRect =
+                    NSMakeRect(NSMinX(cellFrame) + (NSWidth(cellFrame) - kPSMTabBarIconWidth) / 2.0,
+                               NSMinY(cellFrame) + (NSHeight(cellFrame) - kPSMTabBarIconWidth) / 2.0,
+                               kPSMTabBarIconWidth,
+                               kPSMTabBarIconWidth);
+                [icon drawInRect:iconRect
+                        fromRect:NSZeroRect
+                       operation:NSCompositingOperationSourceOver
+                        fraction:1.0
+                  respectFlipped:YES
+                           hints:nil];
+            }
+        }
+        return;
+    }
+
     float labelPosition = cellFrame.origin.x + kSPMTabBarCellInternalXMargin;
+
+    // (Fork) In the vertical tab bar, the per-tab emoji stands in for the graphic
+    // icon as the tab's left-aligned identifier glyph.
+    NSString *tabEmoji = (_orientation == PSMTabBarVerticalOrientation) ? [self emojiForTabCell:cell] : nil;
 
     // close button
     NSSize closeButtonSize = NSZeroSize;
@@ -970,7 +1041,9 @@ const void *PSMTabStyleDarkColorKey = "dark";
                       hints:nil];
     }
     // Draw graphic icon (i.e., the app icon, not new-output indicator icon) over close button.
-    if (cachedTitle.inputs.graphic) {
+    // (Fork) In the vertical bar the per-tab emoji takes this slot instead, so skip
+    // the graphic when an emoji will be drawn below.
+    if (cachedTitle.inputs.graphic && tabEmoji.length == 0) {
         const CGFloat width = [self drawGraphicWithCellFrame:cellFrame
                                                        image:cachedTitle.inputs.graphic
                                                        alpha:1 - closeButtonAlpha];
@@ -979,6 +1052,20 @@ const void *PSMTabStyleDarkColorKey = "dark";
         } else {
             labelPosition = MAX(labelPosition, width + kPSMTabBarCellPadding);
         }
+    }
+
+    // (Fork) Draw the per-tab emoji as a left-aligned identifier glyph in the
+    // vertical tab bar and shift the label to make room. Drawn at full opacity so
+    // it stays visible on the selected tab (it identifies the tab; it is not a
+    // hover-only affordance like the close button).
+    if (tabEmoji.length > 0) {
+        const NSRect emojiBox =
+            NSMakeRect(NSMinX(cellFrame) + kSPMTabBarCellInternalXMargin,
+                       NSMinY(cellFrame) + (NSHeight(cellFrame) - kPSMTabBarIconWidth) / 2.0,
+                       kPSMTabBarIconWidth,
+                       kPSMTabBarIconWidth);
+        [self drawEmoji:tabEmoji centeredInRect:emojiBox pointSize:14 alpha:1.0];
+        labelPosition = MAX(labelPosition, NSMaxX(emojiBox) + kPSMTabBarCellPadding);
     }
 
     // icon

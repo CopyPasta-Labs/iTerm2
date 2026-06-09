@@ -12,6 +12,11 @@ fileprivate let kPSMMetalObjectCounterRadius: CGFloat = 7.0
 fileprivate let kPSMMetalCounterMinWidth: CGFloat = 20
 fileprivate let PSMTahoeTabStyleDebuggingEnabled: Bool = false
 
+// (Fork) Below this vertical-bar cell width, draw the tab icons-only (just the
+// per-tab emoji, centered). Mirrors kPSMCollapsedWidthThreshold in
+// PSMTabBarControl.m, which picks the collapse chevron direction.
+fileprivate let PSMTahoeIconsOnlyWidthThreshold: CGFloat = 70
+
 @objc
 @available(macOS 26, *)
 class PSMTahoeTabStyle: NSObject, PSMTabStyle {
@@ -1464,9 +1469,48 @@ class PSMTahoeTabStyle: NSObject, PSMTabStyle {
     }
     
     
+    // (Fork) The per-tab emoji glyph for a cell, or nil if the represented object
+    // doesn't supply one.
+    private func emoji(for cell: PSMTabBarCell) -> String? {
+        let tab = (cell.representedObject as? NSTabViewItem)?.identifier as? PSMTabBarControlRepresentedObjectIdentifierProtocol
+        guard let emoji = tab?.psmTabEmoji?(), !emoji.isEmpty else {
+            return nil
+        }
+        return emoji
+    }
+
+    // (Fork) Draws an emoji centered in a rect at the given point size.
+    private func drawEmoji(_ emoji: String, centeredIn rect: NSRect, pointSize: CGFloat) {
+        let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: pointSize)]
+        let string = NSAttributedString(string: emoji, attributes: attrs)
+        let size = string.size()
+        let target = NSRect(x: rect.minX + floor((rect.width - size.width) / 2.0),
+                            y: rect.minY + floor((rect.height - size.height) / 2.0),
+                            width: size.width,
+                            height: size.height)
+        string.draw(in: target)
+    }
+
     private func drawInterior(with cell: PSMTabBarCell, inView controlView: NSView?, highlightAmount: CGFloat) {
+        // (Fork) Icons-only mode: when the vertical tab bar is collapsed to a narrow
+        // strip, draw just the per-tab emoji centered and skip everything else. The
+        // cell background/selection was already drawn by drawTabCell.
+        if self.orientation == .verticalOrientation,
+           cell.frame.size.width < PSMTahoeIconsOnlyWidthThreshold {
+            if let emoji = emoji(for: cell) {
+                drawEmoji(emoji, centeredIn: cell.frame, pointSize: 18)
+            } else if cell.hasIcon, let icon = icon(cell: cell) {
+                let r = NSRect(x: cell.frame.minX + (cell.frame.width - kPSMTabBarIconWidth) / 2.0,
+                               y: cell.frame.minY + (cell.frame.height - kPSMTabBarIconWidth) / 2.0,
+                               width: kPSMTabBarIconWidth,
+                               height: kPSMTabBarIconWidth)
+                icon.draw(in: r, from: .zero, operation: .sourceOver, fraction: 1.0, respectFlipped: true, hints: nil)
+            }
+            return
+        }
+
         var objects = [any LayoutableObject]()
-        
+
         enum Priority: Int {
             case required
             case graphic
@@ -1484,12 +1528,16 @@ class PSMTahoeTabStyle: NSObject, PSMTabStyle {
         }
         let orientation = self.orientation
         let edgePadding = 6.0
-        
+
         let orientationShift = if orientation == .verticalOrientation {
             1.0
         } else {
             0.0
         }
+
+        // (Fork) In the vertical bar the per-tab emoji stands in for the graphic
+        // icon as the tab's left-aligned identifier glyph.
+        let tabEmoji: String? = (orientation == .verticalOrientation) ? emoji(for: cell) : nil
 
         // Close button or pin indicator
         if cell.hasCloseButton, !cell.isPinned, let image = _closeButton {
@@ -1544,7 +1592,8 @@ class PSMTahoeTabStyle: NSObject, PSMTabStyle {
         }
         
         // Graphic
-        if let image = cell.cachedTitle?.inputs.graphic {
+        // (Fork) Skip the graphic when an emoji will be drawn in its place below.
+        if let image = cell.cachedTitle?.inputs.graphic, tabEmoji == nil {
             let drawGraphic: (ResolvedLayout) -> () = { resolved in
                 var rect = resolved.frame
                 rect.origin.y = cell.frame.minY + (cell.frame.height - kPSMTabBarIconWidth) / 2.0 + orientationShift
@@ -1563,8 +1612,27 @@ class PSMTahoeTabStyle: NSObject, PSMTabStyle {
                 FixedSpacerLO(name: Name.preLabelSpace.rawValue, width: 2.0, priority: Priority.required.rawValue, gravity: .left)
             ]))
         }
-        
-        
+
+        // (Fork) Per-tab emoji as a left-aligned identifier glyph, drawn at full
+        // opacity so it stays visible on the selected tab (it identifies the tab;
+        // it is not a hover-only affordance like the close button).
+        if let emoji = tabEmoji {
+            objects.append(GroupLO(name: Name.graphic.rawValue, priority: Priority.graphic.rawValue, gravity: .left, members: [
+                TextLO(name: "Emoji",
+                       priority: Priority.required.rawValue,
+                       minWidth: kPSMTabBarIconWidth,
+                       attributedStringWidth: kPSMTabBarIconWidth,
+                       gravity: .left) { resolved in
+                    var rect = resolved.frame
+                    rect.origin.y = cell.frame.minY + (cell.frame.height - kPSMTabBarIconWidth) / 2.0 + orientationShift
+                    rect.size.height = kPSMTabBarIconWidth
+                    self.drawEmoji(emoji, centeredIn: rect, pointSize: 14)
+                },
+                FixedSpacerLO(name: Name.preLabelSpace.rawValue, width: 2.0, priority: Priority.required.rawValue, gravity: .left)
+            ]))
+        }
+
+
         // Label and subtitle
         // For pinned tabs: skip title if a graphic icon is present.
         let skipLabel = cell.isPinned && cell.cachedTitle?.inputs.graphic != nil
