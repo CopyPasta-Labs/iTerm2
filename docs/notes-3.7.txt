@@ -14,6 +14,9 @@ Major New Features:
   shown. Drag its right edge to resize, or
   set Settings > Appearance > Tab bar
   location to choose top/bottom/left.
+- (Fork) View > Show Tab Bar collapses or
+  restores the tab bar for the current
+  window.
 - In the Jobs view (toolbelt and status bar
   popover) hovering a row shows the full
   command as a tooltip, and pressing space

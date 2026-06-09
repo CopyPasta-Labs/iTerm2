@@ -110,6 +110,10 @@ extern NSString *const TERMINAL_ARRANGEMENT_SIZE_LOCKED;
 
     // When YES, the window cannot be resized by the user.
     BOOL _sizeLocked;
+
+    // When YES, the user manually collapsed the tab bar for this window
+    // via View > Show Tab Bar. Resets to NO (visible) on relaunch.
+    BOOL _tabBarManuallyHidden;
 }
 
 @property (nonatomic, retain) NSCustomTouchBarItem *tabsTouchBarItem;

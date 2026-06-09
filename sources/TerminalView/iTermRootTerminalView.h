@@ -32,6 +32,9 @@
 - (BOOL)haveRightBorderRegardlessOfScrollBar;
 - (BOOL)anyFullScreen;
 - (BOOL)tabBarAlwaysVisible;
+
+// When YES, the user manually collapsed the tab bar for this window.
+- (BOOL)tabBarManuallyHidden;
 - (NSEdgeInsets)tabBarInsets;
 - (BOOL)exitingLionFullscreen;
 - (BOOL)enteringLionFullscreen;

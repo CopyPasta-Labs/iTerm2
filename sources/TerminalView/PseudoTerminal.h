@@ -405,6 +405,7 @@ extern NSString *const iTermDidCreateTerminalWindowNotification;
              revive:(BOOL)revive;
 
 - (IBAction)toggleToolbeltVisibility:(id)sender;
+- (IBAction)toggleTabBar:(id)sender;
 
 - (void)setupSession:(PTYSession *)aSession
             withSize:(NSSize *)size;

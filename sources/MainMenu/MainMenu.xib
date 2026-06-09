@@ -954,6 +954,12 @@ DQ
                                 </connections>
                             </menuItem>
                             <menuItem isSeparatorItem="YES" id="bWM-We-TVH"/>
+                            <menuItem title="Show Tab Bar" identifier="Show Tab Bar" id="Ltb-Tg-aaa">
+                                <modifierMask key="keyEquivalentModifierMask"/>
+                                <connections>
+                                    <action selector="toggleTabBar:" target="-1" id="Ltb-Ac-aaa"/>
+                                </connections>
+                            </menuItem>
                             <menuItem title="Toolbelt" identifier="Toolbelt" id="1295">
                                 <modifierMask key="keyEquivalentModifierMask"/>
                                 <menu key="submenu" title="Toolbelt" id="1296">

@@ -1161,6 +1161,10 @@ NS_CLASS_AVAILABLE_MAC(10_14)
 }
 
 - (BOOL)tabBarShouldBeVisibleWithAdditionalTabs:(int)numberOfAdditionalTabs {
+    if ([_delegate tabBarManuallyHidden]) {
+        DLog(@"Tabbar should not be visible because it was manually hidden");
+        return NO;
+    }
     if (([_delegate anyFullScreen] || [_delegate enteringLionFullscreen]) &&
         ![iTermPreferences boolForKey:kPreferenceKeyShowFullscreenTabBar]) {
         DLog(@"Tabbar should not be visible because in full screen");
