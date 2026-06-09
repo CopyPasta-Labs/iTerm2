@@ -7,6 +7,7 @@
 #import "iTermAdvancedSettingsModel.h"
 #import "iTermArrangementKeys.h"
 #import "iTermApplicationDelegate.h"
+#import "iTermCommandCenterView.h"
 #import "iTermController.h"
 #import "iTermFlexibleView.h"
 #import "iTermMoveTabToWindowBuiltInFunction.h"
@@ -145,9 +146,14 @@ static void SetAgainstGrainDim(BOOL isVertical, NSSize *dest, CGFloat value) {
 
 @interface PTYTab()<iTermObject>
 @property(nonatomic, strong) NSMapTable<SessionView *, PTYSession *> *viewToSessionMap;
+// (Fork) Lazily-created placeholder shown as the Command Center tab's content.
+@property(nonatomic, readonly) NSView *commandCenterView;
 @end
 
 @implementation PTYTab {
+    // (Fork) Backs the lazy -commandCenterView getter.
+    iTermCommandCenterView *_commandCenterView;
+
     int _activityCounter;
 
     // Not really unique because it starts at 0 when the app is relaunched
@@ -720,8 +726,21 @@ static void SetAgainstGrainDim(BOOL isVertical, NSSize *dest, CGFloat value) {
 }
 
 - (NSString *)labelForActiveSession {
+    if (_isCommandCenterTab) {
+        return @"Command Center";
+    }
     NSString *title = [[self activeSession] name];
     return [self stringByAppendingSubtitleForActiveSession:title];
+}
+
+// (Fork) The Command Center tab shows this placeholder (a large smiley for now)
+// in place of a terminal whenever it is the selected tab.
+- (NSView *)commandCenterView {
+    if (!_commandCenterView) {
+        _commandCenterView = [[iTermCommandCenterView alloc] initWithFrame:NSZeroRect];
+        _commandCenterView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+    }
+    return _commandCenterView;
 }
 
 - (NSString *)stringByAppendingSubtitleForActiveSession:(NSString *)title {
@@ -1242,12 +1261,12 @@ static void SetAgainstGrainDim(BOOL isVertical, NSSize *dest, CGFloat value) {
     tabViewItem_ = theTabViewItem;
     if (theTabViewItem != nil) {
         // While Lion-restoring windows, there may be no active session.
-        if ([self activeSession]) {
+        if ([self activeSession] || _isCommandCenterTab) {
             [tabViewItem_ setLabel:[self labelForActiveSession]];
         } else {
             [tabViewItem_ setLabel:@""];
         }
-        [tabViewItem_ setView:tabView_];
+        [tabViewItem_ setView:_isCommandCenterTab ? self.commandCenterView : tabView_];
     }
 }
 
@@ -1267,6 +1286,9 @@ static void SetAgainstGrainDim(BOOL isVertical, NSSize *dest, CGFloat value) {
 // stable for the tab's life and differs from its neighbors. Used by the tab bar
 // as a per-tab glyph (title prefix when expanded, sole glyph when collapsed).
 - (NSString *)psmTabEmoji {
+    if (_isCommandCenterTab) {
+        return @"🎛️";
+    }
     static NSArray<NSString *> *palette;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
@@ -1274,6 +1296,12 @@ static void SetAgainstGrainDim(BOOL isVertical, NSSize *dest, CGFloat value) {
                      @"🛰️", @"🔭", @"🧩", @"🎛️", @"🧪", @"🛠️" ];
     });
     return palette[self.uniqueId % palette.count];
+}
+
+// (Fork) The Command Center tab is uncloseable, so its cell shows no close
+// button. Read by PSMTabBarControl when configuring cells.
+- (BOOL)psmTabHidesCloseButton {
+    return _isCommandCenterTab;
 }
 
 - (NSColor *)psmTabStatusSubtitleColor {
@@ -4942,7 +4970,9 @@ typedef struct {
         [root_ setAutoresizingMask:NSViewMaxXMargin | NSViewMaxYMargin];
         tabView_ = newRoot;
     }
-    [tabViewItem_ setView:tabView_];
+    // (Fork) The Command Center tab always shows its placeholder, never the
+    // terminal split tree.
+    [tabViewItem_ setView:_isCommandCenterTab ? self.commandCenterView : tabView_];
 }
 
 - (TmuxController *)tmuxController {

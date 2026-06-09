@@ -1281,7 +1281,13 @@ static NSImage *PSMCollapseHamburgerImage(void) {
     // Update cells' settings in case they changed.
     for (PSMTabBarCell *cell in _cells) {
         cell.truncationStyle = truncationStyle;
-        cell.hasCloseButton = _hasCloseButton;
+        // (Fork) Tabs may opt out of a close button (e.g. the uncloseable
+        // Command Center tab).
+        id tabObject = [[cell representedObject] identifier];
+        const BOOL hidesCloseButton =
+            [tabObject respondsToSelector:@selector(psmTabHidesCloseButton)] &&
+            [tabObject psmTabHidesCloseButton];
+        cell.hasCloseButton = _hasCloseButton && !hidesCloseButton;
         [cell updateForStyle];
         cell.isCloseButtonSuppressed = [self disableTabClose];
         // Remove highlight if cursor is no longer in cell. Could happen if

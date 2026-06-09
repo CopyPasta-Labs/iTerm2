@@ -23,6 +23,10 @@ Major New Features:
   again. Each tab gets its own emoji, shown
   as a prefix and as the glyph when
   collapsed.
+- (Fork) Every window’s first tab is now a
+  “Command Center” tab that cannot be closed.
+  For now it just shows a large smiley face;
+  it is a placeholder for a coming dashboard.
 - In the Jobs view (toolbelt and status bar
   popover) hovering a row shows the full
   command as a tooltip, and pressing space

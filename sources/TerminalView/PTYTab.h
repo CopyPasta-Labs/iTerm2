@@ -90,6 +90,12 @@ extern NSString *const PTYTabArrangementOptionsPendingJumps;
 // Set to nil to use the default behavior. This is a swifty string.
 @property (nonatomic, copy) NSString *titleOverride;
 @property(nonatomic, getter=isPinned) BOOL pinned;
+
+// (Fork) When YES this is the special, always-first “Command Center” tab: its
+// on-screen content is replaced by a placeholder view, its title is fixed, and
+// it cannot be closed.
+@property(nonatomic) BOOL isCommandCenterTab;
+
 @property(nonatomic, readonly) NSString *title;  // the effective title
 @property (nonatomic, readonly) iTermVariableScope<iTermTabScope> *variablesScope;
 @property(nonatomic, readonly) iTermMetalUnavailableReason metalUnavailableReason;

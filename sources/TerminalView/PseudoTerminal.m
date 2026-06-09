@@ -287,6 +287,10 @@ typedef NS_ENUM(int, iTermShouldHaveTitleSeparator) {
     // This prevents recursive resizing.
     BOOL _resizeInProgressFlag;
 
+    // (Fork) Set while -insertCommandCenterTab is building the Command Center
+    // tab, so the insertTab: hook doesn't try to prepend another one.
+    BOOL _insertingCommandCenterTab;
+
     PasteboardHistoryWindowController* pbHistoryView;
     CommandHistoryPopupWindowController *commandHistoryPopup;
     DirectoriesPopupWindowController *_directoriesPopupWindowController;
@@ -2273,6 +2277,12 @@ ITERM_WEAKLY_REFERENCEABLE
 // tab, and closes the window if there are no tabs left.
 - (void)removeTab:(PTYTab *)aTab {
     DLog(@"Remove tab %@", aTab);
+    // (Fork) The Command Center tab is uncloseable. Full-window teardown does
+    // not route through here (it terminates sessions directly), so this only
+    // blocks interactive per-tab closes.
+    if (aTab.isCommandCenterTab) {
+        return;
+    }
     if (![aTab isTmuxTab]) {
         // Exit synthetic sessions (filter, instant replay, screenshot mode)
         // so the restorable session captures live sessions that can be revived.
@@ -7165,6 +7175,10 @@ hidingToolbeltShouldResizeWindow:(BOOL)hidingToolbeltShouldResizeWindow
     if (aTab == nil) {
         return NO;
     }
+    // (Fork) The Command Center tab is uncloseable.
+    if (aTab.isCommandCenterTab) {
+        return NO;
+    }
 
     return [self confirmCloseTab:aTab suppressConfirmation:suppressConfirmation];
 }
@@ -11533,9 +11547,70 @@ static BOOL iTermApproximatelyEqualRects(NSRect lhs, NSRect rhs, double epsilon)
 }
 
 // Add a tab to the tabview.
+// (Fork) The window's always-present, uncloseable Command Center tab, or nil.
+- (PTYTab *)commandCenterTab {
+    for (PTYTab *tab in self.tabs) {
+        if (tab.isCommandCenterTab) {
+            return tab;
+        }
+    }
+    return nil;
+}
+
+- (BOOL)hasCommandCenterTab {
+    return [self commandCenterTab] != nil;
+}
+
+// (Fork) Create the Command Center tab at index 0. It is backed by a normal
+// session (kept for future use) but displays a placeholder instead of a
+// terminal. Called the first time a tab is added to an otherwise-empty window.
+- (void)insertCommandCenterTab {
+    if ([self hasCommandCenterTab]) {
+        return;
+    }
+    Profile *profile = [[ProfileModel sharedInstance] defaultBookmark];
+    if (!profile) {
+        return;
+    }
+    _insertingCommandCenterTab = YES;
+    PTYSession *session = [self createTabWithProfile:profile
+                                         withCommand:nil
+                                         environment:nil
+                                            tabIndex:@0
+                                   previousDirectory:nil
+                                              parent:nil
+                                          completion:nil];
+    _insertingCommandCenterTab = NO;
+    PTYTab *tab = [self tabForSession:session];
+    if (tab) {
+        tab.isCommandCenterTab = YES;
+        [tab setTitleOverride:@"Command Center"];
+        // Re-apply now that the tab is marked: swap in the placeholder view and
+        // fix the label, and refresh the bar so the close button disappears.
+        [tab setTabViewItem:tab.tabViewItem];
+        [_contentView.tabBarControl update];
+    }
+}
+
 - (void)insertTab:(PTYTab*)aTab atIndex:(int)anIndex {
     PtyLog(@"insertTab:atIndex:%d", anIndex);
     assert(aTab);
+
+    // (Fork) Guarantee a Command Center tab at index 0 in every normal window,
+    // then keep it there by never letting another tab take slot 0.
+    BOOL didCreateCommandCenter = NO;
+    if (!_insertingCommandCenterTab &&
+        !_restoringWindow &&
+        !aTab.isCommandCenterTab &&
+        ![aTab isTmuxTab] &&
+        [_contentView.tabView numberOfTabViewItems] == 0) {
+        [self insertCommandCenterTab];
+        didCreateCommandCenter = [self hasCommandCenterTab];
+    }
+    if (!aTab.isCommandCenterTab && [self hasCommandCenterTab]) {
+        anIndex = MAX(anIndex, 1);
+    }
+
     if ([_contentView.tabView indexOfTabViewItemWithIdentifier:aTab] == NSNotFound) {
         for (PTYSession* aSession in [aTab sessions]) {
             [aSession setIgnoreResizeNotifications:YES];
@@ -11579,6 +11654,12 @@ static BOOL iTermApproximatelyEqualRects(NSRect lhs, NSRect rhs, double epsilon)
         if (_suppressMakeCurrentTerminal == iTermSuppressMakeCurrentTerminalNone) {
             [[iTermController sharedInstance] setCurrentTerminal:self];
         }
+    }
+
+    // (Fork) On a fresh window, focus the shell tab rather than the Command
+    // Center so the user can start typing immediately.
+    if (didCreateCommandCenter && !aTab.isCommandCenterTab) {
+        [_contentView.tabView selectTabViewItem:aTab.tabViewItem];
     }
 }
 
@@ -12380,7 +12461,7 @@ typedef NS_ENUM(NSUInteger, iTermBroadcastCommand) {
     NSMutableArray *tabsToRemove = [[[self tabs] mutableCopy] autorelease];
     [tabsToRemove removeObject:tabToKeep];
     for (PTYTab *tab in tabsToRemove) {
-        if (tab.isPinned) {
+        if (tab.isPinned || tab.isCommandCenterTab) {
             continue;
         }
         [self closeTab:tab];
@@ -12400,7 +12481,7 @@ typedef NS_ENUM(NSUInteger, iTermBroadcastCommand) {
     } while (current != tabToKeep);
 
     for (PTYTab *tab in tabsToRemove) {
-        if (tab.isPinned) {
+        if (tab.isPinned || tab.isCommandCenterTab) {
             continue;
         }
         [self closeTab:tab];
@@ -13253,6 +13334,10 @@ typedef NS_ENUM(NSUInteger, iTermBroadcastCommand) {
 }
 
 - (void)tabRemoveTab:(PTYTab *)tab {
+    // (Fork) Keep the Command Center tab even if its backing session dies.
+    if (tab.isCommandCenterTab) {
+        return;
+    }
     if ([_contentView.tabView numberOfTabViewItems] <= 1 && self.windowInitialized) {
         [[self window] close];
     } else {

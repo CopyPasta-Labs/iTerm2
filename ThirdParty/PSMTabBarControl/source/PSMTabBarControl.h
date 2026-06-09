@@ -96,6 +96,9 @@ extern PSMTabBarControlOptionKey PSMTabBarControlOptionPUAFontProvider;  // id<P
 // title normally, and as the sole centered glyph when the tab bar is collapsed
 // to its icons-only strip.
 - (nullable NSString *)psmTabEmoji;
+// (Fork) When YES, this tab's cell never shows a close button (used by the
+// uncloseable Command Center tab).
+- (BOOL)psmTabHidesCloseButton;
 @end
 
 @protocol PSMTabBarControlDelegate<NSTabViewDelegate>
