@@ -51,13 +51,9 @@ const CGFloat kPSMHideAnimationSteps = 2.0;
 const CGSize PSMTabBarGraphicSize = { 16.0, 16.0 };
 const CGFloat PSMTabBarGraphicMargin = 2;
 
-// (Fork) Height of the collapse/expand chevron strip pinned at the top of a
+// (Fork) Height of the collapse/expand hamburger strip pinned at the top of a
 // vertical tab bar.
 static const CGFloat kPSMCollapseButtonHeight = 24;
-// (Fork) Below this vertical-bar width the chevron points right (expand) and the
-// tab is treated as collapsed. Keep in sync with kPSMIconsOnlyWidthThreshold in
-// PSMYosemiteTabStyle.m, which decides where cells switch to icons-only drawing.
-static const CGFloat kPSMCollapsedWidthThreshold = 70;
 
 // Value used in _currentStep to indicate that resizing operation is not in progress
 const NSInteger kPSMIsNotBeingResized = -1;
@@ -154,10 +150,10 @@ PSMTabBarControlOptionKey PSMTabBarControlOptionPUAFontProvider = @"PSMTabBarCon
 - (void)removeTabProgressBarForCell:(PSMTabBarCell *)cell;
 @end
 
-// (Fork) Returns a small template chevron image for the collapse/expand button.
-// Points right (▷, click to expand) when the bar is collapsed to its icons-only
-// strip, and left (◁, click to collapse) when it is at its normal width.
-static NSImage *PSMCollapseChevronImage(BOOL pointingRight) {
+// (Fork) Returns a small template hamburger image (three stacked horizontal
+// lines) for the collapse/expand button. The same glyph is shown in both the
+// expanded and the collapsed (icons-only) states.
+static NSImage *PSMCollapseHamburgerImage(void) {
     const CGFloat side = 12;
     NSImage *image = [NSImage imageWithSize:NSMakeSize(side, side)
                                     flipped:NO
@@ -165,16 +161,12 @@ static NSImage *PSMCollapseChevronImage(BOOL pointingRight) {
         NSBezierPath *path = [NSBezierPath bezierPath];
         path.lineWidth = 1.5;
         path.lineCapStyle = NSLineCapStyleRound;
-        path.lineJoinStyle = NSLineJoinStyleRound;
-        const CGFloat midY = side / 2.0;
-        if (pointingRight) {
-            [path moveToPoint:NSMakePoint(side * 0.40, side * 0.78)];
-            [path lineToPoint:NSMakePoint(side * 0.66, midY)];
-            [path lineToPoint:NSMakePoint(side * 0.40, side * 0.22)];
-        } else {
-            [path moveToPoint:NSMakePoint(side * 0.60, side * 0.78)];
-            [path lineToPoint:NSMakePoint(side * 0.34, midY)];
-            [path lineToPoint:NSMakePoint(side * 0.60, side * 0.22)];
+        const CGFloat minX = side * 0.18;
+        const CGFloat maxX = side * 0.82;
+        const CGFloat ys[] = { side * 0.30, side * 0.50, side * 0.70 };
+        for (int i = 0; i < 3; i++) {
+            [path moveToPoint:NSMakePoint(minX, ys[i])];
+            [path lineToPoint:NSMakePoint(maxX, ys[i])];
         }
         [[NSColor blackColor] setStroke];
         [path stroke];
@@ -1829,17 +1821,16 @@ static NSImage *PSMCollapseChevronImage(BOOL pointingRight) {
     }
 }
 
-// (Fork) The collapse/expand chevron only makes sense for the vertical (left or
-// right) tab bar, and only when a delegate is present to handle the click.
+// (Fork) The collapse/expand hamburger only makes sense for the vertical (left
+// or right) tab bar, and only when a delegate is present to handle the click.
 - (BOOL)shouldShowCollapseButton {
     return (_orientation == PSMTabBarVerticalOrientation &&
             [self.delegate respondsToSelector:@selector(tabViewDidClickTabBarCollapseButton:)]);
 }
 
-// (Fork) Lazily create and position the collapse/expand chevron at the top of a
-// vertical tab bar. The chevron direction reflects the current width: it points
-// right (expand) while collapsed to the icons-only strip, left (collapse) when
-// at normal width.
+// (Fork) Lazily create and position the collapse/expand hamburger button at the
+// top of a vertical tab bar. The same hamburger glyph is shown regardless of
+// width; clicking it toggles the collapsed (icons-only) state.
 - (void)_setupCollapseButton:(NSRect)frame {
     if (!_collapseButton) {
         _collapseButton = [[PSMRolloverButton alloc] initWithFrame:frame];
@@ -1856,10 +1847,9 @@ static NSImage *PSMCollapseChevronImage(BOOL pointingRight) {
     if (![[self subviews] containsObject:_collapseButton]) {
         [self addSubview:_collapseButton];
     }
-    const BOOL collapsed = (self.frame.size.width < kPSMCollapsedWidthThreshold);
-    NSImage *chevron = PSMCollapseChevronImage(collapsed);
-    [_collapseButton setUsualImage:chevron];
-    [_collapseButton setRolloverImage:chevron];
+    NSImage *hamburger = PSMCollapseHamburgerImage();
+    [_collapseButton setUsualImage:hamburger];
+    [_collapseButton setRolloverImage:hamburger];
     [_collapseButton setFrame:frame];
     [_collapseButton setHidden:NO];
     [_collapseButton setNeedsDisplay:YES];

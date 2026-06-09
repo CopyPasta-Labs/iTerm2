@@ -22,8 +22,8 @@
 #define kPSMMetalCounterMinWidth 20
 
 // (Fork) At or below this vertical-bar cell width, draw the tab icons-only (just
-// the per-tab emoji, centered). Keep in sync with kPSMCollapsedWidthThreshold in
-// PSMTabBarControl.m, which picks the collapse chevron direction.
+// the per-tab emoji, centered). Keep in sync with PSMTahoeIconsOnlyWidthThreshold
+// in PSMTahoeTabStyle.swift, the macOS-26 default style.
 static const CGFloat kPSMIconsOnlyWidthThreshold = 70;
 
 @interface NSImage (External)

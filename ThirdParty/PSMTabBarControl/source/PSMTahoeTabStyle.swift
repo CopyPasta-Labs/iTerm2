@@ -13,8 +13,8 @@ fileprivate let kPSMMetalCounterMinWidth: CGFloat = 20
 fileprivate let PSMTahoeTabStyleDebuggingEnabled: Bool = false
 
 // (Fork) Below this vertical-bar cell width, draw the tab icons-only (just the
-// per-tab emoji, centered). Mirrors kPSMCollapsedWidthThreshold in
-// PSMTabBarControl.m, which picks the collapse chevron direction.
+// per-tab emoji, centered). Mirrors kPSMIconsOnlyWidthThreshold in
+// PSMYosemiteTabStyle.m, the older/opt-in style.
 fileprivate let PSMTahoeIconsOnlyWidthThreshold: CGFloat = 70
 
 @objc
