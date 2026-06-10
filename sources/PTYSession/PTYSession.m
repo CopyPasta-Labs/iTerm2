@@ -82,6 +82,7 @@
 #import "iTerm.h"
 #import "iTerm2SharedARC-Swift.h"
 #import "iTermAPIHelper.h"
+#import "iTermClaudeMessenger.h"
 #import "iTermHermesMessenger.h"
 #import "iTermActionsModel.h"
 #import "iTermAddTriggerViewController.h"
@@ -401,9 +402,11 @@ typedef NS_ENUM(NSUInteger, PTYSessionTurdType) {
 
 @implementation PTYSession {
 
-    // (Fork) Lazily created on the first sendHermesMessage:; drives programmatic
-    // message round-trips against a hermes agent in this session.
+    // (Fork) Lazily created on the first sendHermesMessage:/sendClaudeMessage:;
+    // each drives programmatic message round-trips against its agent in this
+    // session. A tab is one agent, so at most one is ever non-nil.
     iTermHermesMessenger *_hermesMessenger;
+    iTermClaudeMessenger *_claudeMessenger;
 
     NSString *_termVariable;
 
@@ -1194,6 +1197,7 @@ ITERM_WEAKLY_REFERENCEABLE
     [_swiftState release];
     [_agentStateChannel release];  // (Fork) releasing tears down the agent state FIFO
     [_hermesMessenger release];
+    [_claudeMessenger release];
 
     [super dealloc];
 }
@@ -14693,8 +14697,9 @@ typedef NS_ENUM(NSUInteger, PTYSessionTmuxReport) {
     _agentState = newState;
     [self.delegate sessionAgentStateDidChange:self];
     // (Fork) Drive any in-flight programmatic round-trip off the same edge that
-    // paints the tab dot.
+    // paints the tab dot. Only the messenger for this tab’s agent is non-nil.
     [_hermesMessenger agentStateDidChange:state];
+    [_claudeMessenger agentStateDidChange:state];
 }
 
 - (void)sendHermesMessage:(NSString *)message
@@ -14720,6 +14725,39 @@ typedef NS_ENUM(NSUInteger, PTYSessionTmuxReport) {
         payload = [message stringByAppendingString:@"\r"];
     }
     [self writeTaskNoBroadcast:payload];
+}
+
+- (void)sendClaudeMessage:(NSString *)message
+               completion:(void (^)(NSString *_Nullable reply, NSError *_Nullable error))completion {
+    if (_claudeMessenger == nil) {
+        NSString *projectsRoot = [NSHomeDirectory() stringByAppendingPathComponent:@".claude/projects"];
+        _claudeMessenger = [[iTermClaudeMessenger alloc] initWithProjectsRoot:projectsRoot];
+    }
+    if (![_claudeMessenger beginSendingMessage:message completion:completion]) {
+        completion(nil, [NSError errorWithDomain:@"com.copypastalabs.iterm2.claude"
+                                            code:2
+                                        userInfo:@{ NSLocalizedDescriptionKey:
+                                                        @"claude agent is busy or a message is already in flight" }]);
+        return;
+    }
+    // Inject the message into the live pty exactly as if typed, so the tab stays
+    // interactive. The carriage return that submits it MUST be a separate write a
+    // beat later: claude’s TUI treats a text+CR burst arriving in one read as a
+    // paste (the CR becomes literal and does not submit), but a CR arriving on its
+    // own reads as Enter. Multi-line messages are bracketed-pasted so they aren’t
+    // split at their own newlines. (hermes, by contrast, submits on a combined
+    // write — hence the per-agent send paths.)
+    NSString *body;
+    if ([message containsString:@"\n"]) {
+        body = [NSString stringWithFormat:@"\x1b[200~%@\x1b[201~", message];
+    } else {
+        body = message;
+    }
+    [self writeTaskNoBroadcast:body];
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.05 * NSEC_PER_SEC)),
+                   dispatch_get_main_queue(), ^{
+        [self writeTaskNoBroadcast:@"\r"];
+    });
 }
 
 - (NSString *)screenWindowTitle {

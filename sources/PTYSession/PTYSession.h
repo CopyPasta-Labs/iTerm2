@@ -404,6 +404,12 @@ typedef NS_ENUM(NSInteger, iTermAgentState) {
 - (void)sendHermesMessage:(NSString *)message
                completion:(void (^)(NSString *_Nullable reply, NSError *_Nullable error))completion;
 
+// (Fork) As above, but for a claude-code agent in this session: the reply is read
+// out of band from claude’s JSONL transcript under ~/.claude/projects once the
+// agent goes idle (the terminal is never scraped).
+- (void)sendClaudeMessage:(NSString *)message
+               completion:(void (^)(NSString *_Nullable reply, NSError *_Nullable error))completion;
+
 // A session is active when it's in a visible tab and it needs periodic redraws (something is
 // blinking, it isn't idle, etc), or when a background tab is updating its tab label. This controls
 // how often -updateDisplay gets called to check for dirty characters and invalidate dirty rects,

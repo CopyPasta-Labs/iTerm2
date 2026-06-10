@@ -1449,3 +1449,10 @@ Bug Fixes:
   once it goes idle — the terminal is
   never scraped. See the bake-off in
   docs/hermes-messaging.md.
+- You can likewise message a claude-code
+  tab: iterm2.claude_send(message) drives
+  the live claude tab and returns its
+  reply, read from claude’s JSONL
+  transcript once it goes idle. Same
+  shared round-trip as hermes_send. See
+  the bake-off in docs/claude-messaging.md.

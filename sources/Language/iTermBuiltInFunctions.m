@@ -9,6 +9,7 @@
 
 #import "iTerm2SharedARC-Swift.h"
 #import "iTermAlertBuiltInFunction.h"
+#import "iTermClaudeSendBuiltInFunction.h"
 #import "iTermHermesSendBuiltInFunction.h"
 #import "iTermReflection.h"
 #import "iTermSetStatusBarComponentUnreadCountBuiltInFunction.h"
@@ -177,6 +178,7 @@ NSString *iTermNamespaceFromSignature(NSString *signature) {
     [iTermURLEncodeBuiltInFunction registerBuiltInFunction];
     [iTermTmuxFormatBuiltInFunction registerBuiltInFunction];
     [iTermSetStatusBuiltInFunction registerBuiltInFunction];
+    [iTermClaudeSendBuiltInFunction registerBuiltInFunction];
     [iTermHermesSendBuiltInFunction registerBuiltInFunction];
 }
 

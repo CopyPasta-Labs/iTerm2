@@ -1,0 +1,103 @@
+#!/usr/bin/env python3
+"""
+claude_send — send a message to a claude-code agent tab in the (running) iTerm2
+fork and print claude's reply.
+
+This is a thin client over the in-app feature: it invokes the built-in function
+`iterm2.claude_send(message)` in a session's scope. iTerm2 owns the round-trip —
+it injects the message into the live pty (the tab stays fully interactive) and
+reads the reply back from claude's JSONL transcript (~/.claude/projects/...) once
+the agent goes idle. Nothing is scraped off the screen. See docs/claude-messaging.md.
+
+Usage:
+  tests/claude_send "your message"               # uses the active session
+  tests/claude_send --session <session_id> "msg" # a specific session
+  tests/claude_send --list                        # list candidate claude tabs
+
+Setup (one time):
+  python3 -m venv tmp/msgbakeoff-venv
+  tmp/msgbakeoff-venv/bin/pip install iterm2
+  tmp/msgbakeoff-venv/bin/python tests/claude_send "say hi in one word"
+
+The first connection pops an API-access prompt in the fork — click Allow.
+Point it at the claude tab by focusing that tab, or pass --session.
+
+Connecting to the *rebranded* fork (bundle id com.copypastalabs.iterm2) needs
+two environment variables, because the iterm2 lib otherwise looks for the stock
+iTerm2 socket/app:
+  IT2_SUITE=com.copypastalabs.iterm2     # where the API socket lives
+  IT2_APP_PATH=/path/to/CopyPasta\ Term.app   # for the AppleScript cookie request
+This script sets IT2_SUITE for you; set IT2_APP_PATH to your built .app, e.g.:
+  IT2_APP_PATH="$(pgrep -lf Development/iTerm2.app | awk '{print $2}' | sed 's#/Contents/MacOS/iTerm2##')" \\
+    tmp/msgbakeoff-venv/bin/python tests/claude_send "say hi"
+"""
+
+import argparse
+import os
+import sys
+
+# The fork's API socket lives under its own bundle id, not "iTerm2".
+os.environ.setdefault("IT2_SUITE", "com.copypastalabs.iterm2")
+
+try:
+    import iterm2
+except ImportError:
+    sys.stderr.write("error: the 'iterm2' package is required: pip install iterm2\n")
+    sys.exit(2)
+
+
+def expr_quote(s):
+    """Quote a string for iTerm2's expression language."""
+    s = s.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+    return '"' + s + '"'
+
+
+_ARGS = None
+
+
+async def _main(connection):
+    app = await iterm2.async_get_app(connection)
+
+    if _ARGS.list:
+        for window in app.terminal_windows:
+            for tab in window.tabs:
+                for session in tab.all_sessions:
+                    job = await session.async_get_variable("jobName")
+                    print("%s  job=%s" % (session.session_id, job))
+        return
+
+    session = None
+    if _ARGS.session:
+        session = app.get_session_by_id(_ARGS.session)
+    else:
+        window = app.current_terminal_window
+        if window and window.current_tab:
+            session = window.current_tab.current_session
+    if session is None:
+        sys.stderr.write("error: no target session (focus the claude tab or pass --session)\n")
+        sys.exit(1)
+
+    invocation = "iterm2.claude_send(message: %s)" % expr_quote(_ARGS.message)
+    try:
+        reply = await session.async_invoke_function(invocation, timeout=_ARGS.timeout)
+    except iterm2.RPCException as e:
+        sys.stderr.write("claude_send failed: %s\n" % e)
+        sys.exit(1)
+    print(reply if reply is not None else "")
+
+
+def main():
+    global _ARGS
+    ap = argparse.ArgumentParser(description="Send a message to a claude agent tab and print the reply.")
+    ap.add_argument("message", nargs="?", default=None, help="the message to send")
+    ap.add_argument("--session", default=None, help="target session id (default: the active session)")
+    ap.add_argument("--list", action="store_true", help="list sessions and their foreground job, then exit")
+    ap.add_argument("--timeout", type=float, default=300.0, help="seconds to wait for the reply")
+    _ARGS = ap.parse_args()
+    if not _ARGS.list and not _ARGS.message:
+        ap.error("a message is required (or use --list)")
+    iterm2.run_until_complete(_main)
+
+
+if __name__ == "__main__":
+    main()
