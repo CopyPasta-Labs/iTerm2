@@ -82,6 +82,7 @@
 #import "iTerm.h"
 #import "iTerm2SharedARC-Swift.h"
 #import "iTermAPIHelper.h"
+#import "iTermHermesMessenger.h"
 #import "iTermActionsModel.h"
 #import "iTermAddTriggerViewController.h"
 #import "iTermAdvancedSettingsModel.h"
@@ -399,6 +400,10 @@ typedef NS_ENUM(NSUInteger, PTYSessionTurdType) {
 @end
 
 @implementation PTYSession {
+
+    // (Fork) Lazily created on the first sendHermesMessage:; drives programmatic
+    // message round-trips against a hermes agent in this session.
+    iTermHermesMessenger *_hermesMessenger;
 
     NSString *_termVariable;
 
@@ -1188,6 +1193,7 @@ ITERM_WEAKLY_REFERENCEABLE
     [_sessionNoteModel release];
     [_swiftState release];
     [_agentStateChannel release];  // (Fork) releasing tears down the agent state FIFO
+    [_hermesMessenger release];
 
     [super dealloc];
 }
@@ -14686,6 +14692,34 @@ typedef NS_ENUM(NSUInteger, PTYSessionTmuxReport) {
     }
     _agentState = newState;
     [self.delegate sessionAgentStateDidChange:self];
+    // (Fork) Drive any in-flight programmatic round-trip off the same edge that
+    // paints the tab dot.
+    [_hermesMessenger agentStateDidChange:state];
+}
+
+- (void)sendHermesMessage:(NSString *)message
+               completion:(void (^)(NSString *_Nullable reply, NSError *_Nullable error))completion {
+    if (_hermesMessenger == nil) {
+        NSString *dbPath = [NSHomeDirectory() stringByAppendingPathComponent:@".hermes/state.db"];
+        _hermesMessenger = [[iTermHermesMessenger alloc] initWithDatabasePath:dbPath];
+    }
+    if (![_hermesMessenger beginSendingMessage:message completion:completion]) {
+        completion(nil, [NSError errorWithDomain:@"com.copypastalabs.iterm2.hermes"
+                                            code:2
+                                        userInfo:@{ NSLocalizedDescriptionKey:
+                                                        @"hermes agent is busy or a message is already in flight" }]);
+        return;
+    }
+    // Inject the message into the live pty exactly as if typed, so the tab stays
+    // interactive. Multi-line messages are bracketed-pasted so prompt_toolkit
+    // does not submit at the first newline.
+    NSString *payload;
+    if ([message containsString:@"\n"]) {
+        payload = [NSString stringWithFormat:@"\x1b[200~%@\x1b[201~\r", message];
+    } else {
+        payload = [message stringByAppendingString:@"\r"];
+    }
+    [self writeTaskNoBroadcast:payload];
 }
 
 - (NSString *)screenWindowTitle {

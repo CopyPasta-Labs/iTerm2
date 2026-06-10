@@ -1,0 +1,90 @@
+#!/usr/bin/env python3
+"""
+hermes_send — send a message to a hermes agent tab in the (running) iTerm2 fork
+and print hermes's reply.
+
+This is a thin client over the in-app feature: it invokes the built-in function
+`iterm2.hermes_send(message)` in a session's scope. iTerm2 owns the round-trip —
+it injects the message into the live pty (the tab stays fully interactive) and
+reads the reply back from hermes's state.db once the agent goes idle. Nothing is
+scraped off the screen. See docs/hermes-messaging.md.
+
+Usage:
+  tests/hermes_send "your message"               # uses the active session
+  tests/hermes_send --session <session_id> "msg" # a specific session
+  tests/hermes_send --list                        # list candidate hermes tabs
+
+Setup (one time):
+  python3 -m venv tmp/msgbakeoff-venv
+  tmp/msgbakeoff-venv/bin/pip install iterm2
+  tmp/msgbakeoff-venv/bin/python tests/hermes_send "say hi in one word"
+
+The first connection pops an API-access prompt in the fork — click Allow.
+Point it at the hermes tab by focusing that tab, or pass --session.
+"""
+
+import argparse
+import sys
+
+try:
+    import iterm2
+except ImportError:
+    sys.stderr.write("error: the 'iterm2' package is required: pip install iterm2\n")
+    sys.exit(2)
+
+
+def expr_quote(s):
+    """Quote a string for iTerm2's expression language."""
+    s = s.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+    return '"' + s + '"'
+
+
+_ARGS = None
+
+
+async def _main(connection):
+    app = await iterm2.async_get_app(connection)
+
+    if _ARGS.list:
+        for window in app.terminal_windows:
+            for tab in window.tabs:
+                for session in tab.all_sessions:
+                    job = await session.async_get_variable("jobName")
+                    print("%s  job=%s" % (session.session_id, job))
+        return
+
+    session = None
+    if _ARGS.session:
+        session = app.get_session_by_id(_ARGS.session)
+    else:
+        window = app.current_terminal_window
+        if window and window.current_tab:
+            session = window.current_tab.current_session
+    if session is None:
+        sys.stderr.write("error: no target session (focus the hermes tab or pass --session)\n")
+        sys.exit(1)
+
+    invocation = "hermes_send(message: %s)" % expr_quote(_ARGS.message)
+    try:
+        reply = await session.async_invoke_function(invocation, timeout=_ARGS.timeout)
+    except iterm2.RPCException as e:
+        sys.stderr.write("hermes_send failed: %s\n" % e)
+        sys.exit(1)
+    print(reply if reply is not None else "")
+
+
+def main():
+    global _ARGS
+    ap = argparse.ArgumentParser(description="Send a message to a hermes agent tab and print the reply.")
+    ap.add_argument("message", nargs="?", default=None, help="the message to send")
+    ap.add_argument("--session", default=None, help="target session id (default: the active session)")
+    ap.add_argument("--list", action="store_true", help="list sessions and their foreground job, then exit")
+    ap.add_argument("--timeout", type=float, default=300.0, help="seconds to wait for the reply")
+    _ARGS = ap.parse_args()
+    if not _ARGS.list and not _ARGS.message:
+        ap.error("a message is required (or use --list)")
+    iterm2.run_until_complete(_main)
+
+
+if __name__ == "__main__":
+    main()

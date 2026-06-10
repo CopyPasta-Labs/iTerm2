@@ -1440,3 +1440,12 @@ Bug Fixes:
   Automatic update checks are disabled
   so it can’t replace itself with the
   upstream iTerm2.
+- You can now message a hermes agent tab
+  programmatically. The built-in function
+  iterm2.hermes_send(message) injects the
+  text into the live tab (which stays
+  interactive) and returns hermes’s reply,
+  read back from hermes’s own state.db
+  once it goes idle — the terminal is
+  never scraped. See the bake-off in
+  docs/hermes-messaging.md.

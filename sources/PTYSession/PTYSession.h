@@ -396,6 +396,14 @@ typedef NS_ENUM(NSInteger, iTermAgentState) {
 // tty). Owned by the session so its FIFO is torn down when the tab closes.
 @property(nonatomic, strong, nullable) iTermAgentStateChannel *agentStateChannel;
 
+// (Fork) Send a message to a hermes agent running in this session and read its
+// reply back once the agent goes idle. The message is injected into the live pty
+// (the tab stays interactive); the reply is read out of band from hermes’s
+// state.db (the terminal is never scraped). completion runs on the main queue
+// with the reply text, or an error if the agent was busy / timed out.
+- (void)sendHermesMessage:(NSString *)message
+               completion:(void (^)(NSString *_Nullable reply, NSError *_Nullable error))completion;
+
 // A session is active when it's in a visible tab and it needs periodic redraws (something is
 // blinking, it isn't idle, etc), or when a background tab is updating its tab label. This controls
 // how often -updateDisplay gets called to check for dirty characters and invalidate dirty rects,
