@@ -21,10 +21,23 @@ Setup (one time):
 
 The first connection pops an API-access prompt in the fork — click Allow.
 Point it at the hermes tab by focusing that tab, or pass --session.
+
+Connecting to the *rebranded* fork (bundle id com.copypastalabs.iterm2) needs
+two environment variables, because the iterm2 lib otherwise looks for the stock
+iTerm2 socket/app:
+  IT2_SUITE=com.copypastalabs.iterm2     # where the API socket lives
+  IT2_APP_PATH=/path/to/CopyPasta\ Term.app   # for the AppleScript cookie request
+This script sets IT2_SUITE for you; set IT2_APP_PATH to your built .app, e.g.:
+  IT2_APP_PATH="$(pgrep -lf Development/iTerm2.app | awk '{print $2}' | sed 's#/Contents/MacOS/iTerm2##')" \\
+    tmp/msgbakeoff-venv/bin/python tests/hermes_send "say hi"
 """
 
 import argparse
+import os
 import sys
+
+# The fork's API socket lives under its own bundle id, not "iTerm2".
+os.environ.setdefault("IT2_SUITE", "com.copypastalabs.iterm2")
 
 try:
     import iterm2
@@ -64,7 +77,7 @@ async def _main(connection):
         sys.stderr.write("error: no target session (focus the hermes tab or pass --session)\n")
         sys.exit(1)
 
-    invocation = "hermes_send(message: %s)" % expr_quote(_ARGS.message)
+    invocation = "iterm2.hermes_send(message: %s)" % expr_quote(_ARGS.message)
     try:
         reply = await session.async_invoke_function(invocation, timeout=_ARGS.timeout)
     except iterm2.RPCException as e:
