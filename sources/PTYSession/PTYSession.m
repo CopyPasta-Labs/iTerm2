@@ -1187,6 +1187,7 @@ ITERM_WEAKLY_REFERENCEABLE
     [_apsContext release];
     [_sessionNoteModel release];
     [_swiftState release];
+    [_agentStateChannel release];  // (Fork) releasing tears down the agent state FIFO
 
     [super dealloc];
 }
@@ -14667,23 +14668,24 @@ typedef NS_ENUM(NSUInteger, PTYSessionTmuxReport) {
     [self.delegate sessionDidSetWindowTitle:title];
 }
 
-- (void)screenSetHermesState:(NSString *)state {
-    // (Fork) Map the in-band OSC 1337 ; HermesState=working|idle signal onto a
-    // typed per-session state. Unknown values are ignored so a stray code can’t
-    // clear the indicator.
-    iTermHermesState newState;
+- (void)screenSetAgentState:(NSString *)state {
+    // (Fork) Map a working|idle signal — from the agent’s in-band OSC 1337 code
+    // or from a side channel the terminal reads directly — onto a typed
+    // per-session state. Unknown values are ignored so a stray code can’t clear
+    // the indicator.
+    iTermAgentState newState;
     if ([state isEqualToString:@"working"]) {
-        newState = iTermHermesStateWorking;
+        newState = iTermAgentStateWorking;
     } else if ([state isEqualToString:@"idle"]) {
-        newState = iTermHermesStateIdle;
+        newState = iTermAgentStateIdle;
     } else {
         return;
     }
-    if (newState == _hermesState) {
+    if (newState == _agentState) {
         return;
     }
-    _hermesState = newState;
-    [self.delegate sessionHermesStateDidChange:self];
+    _agentState = newState;
+    [self.delegate sessionAgentStateDidChange:self];
 }
 
 - (NSString *)screenWindowTitle {

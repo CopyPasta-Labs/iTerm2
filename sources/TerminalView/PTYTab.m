@@ -1304,16 +1304,17 @@ static void SetAgainstGrainDim(BOOL isVertical, NSSize *dest, CGFloat value) {
     return _isCommandCenterTab;
 }
 
-// (Fork) Red while the active session’s agentic CLI (hermes) is working, green
-// while it is idle and waiting for input. Nil — no dot — when no such signal has
-// been seen (ordinary shells), so the dot is scoped to agent tabs automatically.
+// (Fork) Red while the active session’s agentic CLI (hermes or claude) is
+// working, green while it is idle and waiting for input. Nil — no dot — when no
+// such signal has been seen (ordinary shells), so the dot is scoped to agent
+// tabs automatically.
 - (NSColor *)psmTabStatusColor {
-    switch (self.activeSession.hermesState) {
-        case iTermHermesStateWorking:
+    switch (self.activeSession.agentState) {
+        case iTermAgentStateWorking:
             return [NSColor systemRedColor];
-        case iTermHermesStateIdle:
+        case iTermAgentStateIdle:
             return [NSColor systemGreenColor];
-        case iTermHermesStateUnknown:
+        case iTermAgentStateUnknown:
             return nil;
     }
     return nil;
@@ -7276,12 +7277,12 @@ typedef struct {
     [self.delegate tabDidSetWindowTitle:self to:title];
 }
 
-- (void)sessionHermesStateDidChange:(PTYSession *)session {
+- (void)sessionAgentStateDidChange:(PTYSession *)session {
     // (Fork) Only the active session drives the tab’s status dot; ignore others.
     if (session != self.activeSession) {
         return;
     }
-    [self.delegate tabDidChangeHermesState:self];
+    [self.delegate tabDidChangeAgentState:self];
 }
 
 - (void)sessionJobDidChange:(PTYSession *)session {

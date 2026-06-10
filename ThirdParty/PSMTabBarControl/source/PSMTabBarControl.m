@@ -208,6 +208,36 @@ static NSImage *PSMHermesLaunchImage(void) {
     return image;
 }
 
+// (Fork) Returns a small template “sparkle/asterisk” glyph for the launch-claude
+// button — eight rays through the center — visually distinct from the hermes
+// robot head. Shown in both the expanded and collapsed (icons-only) states.
+static NSImage *PSMClaudeLaunchImage(void) {
+    const CGFloat side = 14;
+    NSImage *image = [NSImage imageWithSize:NSMakeSize(side, side)
+                                    flipped:NO
+                             drawingHandler:^BOOL(NSRect dstRect) {
+        [[NSColor blackColor] setStroke];
+        NSBezierPath *path = [NSBezierPath bezierPath];
+        path.lineWidth = 1.3;
+        path.lineCapStyle = NSLineCapStyleRound;
+        const NSPoint c = NSMakePoint(side / 2.0, side / 2.0);
+        const CGFloat r = side * 0.40;
+        // Four diameters at 0°, 45°, 90°, 135° (unit offsets, precomputed to
+        // avoid a <math.h> dependency) give an eight-ray asterisk.
+        const CGFloat offs[4][2] = { {1.0, 0.0}, {0.7071, 0.7071}, {0.0, 1.0}, {-0.7071, 0.7071} };
+        for (int i = 0; i < 4; i++) {
+            const CGFloat dx = r * offs[i][0];
+            const CGFloat dy = r * offs[i][1];
+            [path moveToPoint:NSMakePoint(c.x - dx, c.y - dy)];
+            [path lineToPoint:NSMakePoint(c.x + dx, c.y + dy)];
+        }
+        [path stroke];
+        return YES;
+    }];
+    image.template = YES;
+    return image;
+}
+
 @implementation PSMTabBarControl {
     // control basics
     NSMutableArray<PSMTabBarCell *> *_cells; // the cells that draw the tabs
@@ -215,6 +245,7 @@ static NSImage *PSMHermesLaunchImage(void) {
     PSMRolloverButton *_addTabButton;
     PSMRolloverButton *_collapseButton; // (Fork) collapse/expand the vertical tab list
     PSMRolloverButton *_hermesButton; // (Fork) launch a hermes agent in a new tab
+    PSMRolloverButton *_claudeButton; // (Fork) launch a claude agent in a new tab
 
     // drawing style
     NSTimer *_animationTimer;
@@ -456,6 +487,7 @@ static NSImage *PSMHermesLaunchImage(void) {
     [_addTabButton release];
     [_collapseButton release];
     [_hermesButton release];
+    [_claudeButton release];
     [partnerView release];
     [_lastMouseDownEvent release];
     [_lastMiddleMouseDownEvent release];
@@ -1688,22 +1720,36 @@ static NSImage *PSMHermesLaunchImage(void) {
     }
 
     // (Fork) Pin the collapse/expand chevron to the top of a vertical tab bar.
-    // When a “launch hermes” button is also available, split the top strip so
-    // the chevron sits on the left and the hermes button on the right.
+    // When agent-launch buttons are also available, split the top strip into
+    // equal slots: chevron on the left, then the hermes and claude buttons. The
+    // rightmost shown button absorbs any rounding remainder.
     if ([self shouldShowCollapseButton]) {
         const CGFloat stripHeight = kPSMCollapseButtonHeight;
         const CGFloat stripWidth = self.frame.size.width;
-        if ([self shouldShowHermesButton]) {
-            const CGFloat half = floor(stripWidth / 2.0);
-            [self _setupCollapseButton:NSMakeRect(0, 0, half, stripHeight)];
-            [self _setupHermesButton:NSMakeRect(half, 0, stripWidth - half, stripHeight)];
+        const BOOL showHermes = [self shouldShowHermesButton];
+        const BOOL showClaude = [self shouldShowClaudeButton];
+        const NSInteger count = 1 + (showHermes ? 1 : 0) + (showClaude ? 1 : 0);
+        const CGFloat slot = floor(stripWidth / count);
+        CGFloat x = 0;
+        const CGFloat collapseW = (showHermes || showClaude) ? slot : stripWidth;
+        [self _setupCollapseButton:NSMakeRect(x, 0, collapseW, stripHeight)];
+        x += slot;
+        if (showHermes) {
+            const CGFloat w = showClaude ? slot : (stripWidth - x);
+            [self _setupHermesButton:NSMakeRect(x, 0, w, stripHeight)];
+            x += slot;
         } else {
-            [self _setupCollapseButton:NSMakeRect(0, 0, stripWidth, stripHeight)];
             [_hermesButton setHidden:YES];
+        }
+        if (showClaude) {
+            [self _setupClaudeButton:NSMakeRect(x, 0, stripWidth - x, stripHeight)];
+        } else {
+            [_claudeButton setHidden:YES];
         }
     } else {
         [_collapseButton setHidden:YES];
         [_hermesButton setHidden:YES];
+        [_claudeButton setHidden:YES];
     }
 }
 
@@ -1887,6 +1933,13 @@ static NSImage *PSMHermesLaunchImage(void) {
             [self.delegate respondsToSelector:@selector(tabViewDidClickHermesButton:)]);
 }
 
+// (Fork) The “launch claude” button shares the top strip with the collapse
+// chevron and only appears on a vertical tab bar when the delegate can open one.
+- (BOOL)shouldShowClaudeButton {
+    return (_orientation == PSMTabBarVerticalOrientation &&
+            [self.delegate respondsToSelector:@selector(tabViewDidClickClaudeButton:)]);
+}
+
 // (Fork) Lazily create and position the collapse/expand hamburger button at the
 // top of a vertical tab bar. The same hamburger glyph is shown regardless of
 // width; clicking it toggles the collapsed (icons-only) state.
@@ -1949,6 +2002,38 @@ static NSImage *PSMHermesLaunchImage(void) {
 - (void)hermesButtonAction:(id)sender {
     if ([self.delegate respondsToSelector:@selector(tabViewDidClickHermesButton:)]) {
         [self.delegate tabViewDidClickHermesButton:self];
+    }
+}
+
+// (Fork) Lazily create and position the “launch claude” button next to the
+// collapse chevron and the hermes button at the top of a vertical tab bar.
+- (void)_setupClaudeButton:(NSRect)frame {
+    if (!_claudeButton) {
+        _claudeButton = [[PSMRolloverButton alloc] initWithFrame:frame];
+        _claudeButton.allowDrags = NO;
+        [_claudeButton setTitle:@""];
+        [_claudeButton setImagePosition:NSImageOnly];
+        [_claudeButton setButtonType:NSButtonTypeMomentaryChange];
+        [_claudeButton setBordered:NO];
+        [_claudeButton setBezelStyle:NSBezelStyleShadowlessSquare];
+        _claudeButton.action = @selector(claudeButtonAction:);
+        _claudeButton.target = self;
+        _claudeButton.accessibilityLabel = @"Open a new claude agent tab";
+    }
+    if (![[self subviews] containsObject:_claudeButton]) {
+        [self addSubview:_claudeButton];
+    }
+    NSImage *sparkle = PSMClaudeLaunchImage();
+    [_claudeButton setUsualImage:sparkle];
+    [_claudeButton setRolloverImage:sparkle];
+    [_claudeButton setFrame:frame];
+    [_claudeButton setHidden:NO];
+    [_claudeButton setNeedsDisplay:YES];
+}
+
+- (void)claudeButtonAction:(id)sender {
+    if ([self.delegate respondsToSelector:@selector(tabViewDidClickClaudeButton:)]) {
+        [self.delegate tabViewDidClickClaudeButton:self];
     }
 }
 

@@ -170,6 +170,9 @@ extern PSMTabBarControlOptionKey PSMTabBarControlOptionPUAFontProvider;  // id<P
 // (Fork) The “launch hermes” button next to the collapse chevron was clicked;
 // open a new tab running the hermes agentic CLI.
 - (void)tabViewDidClickHermesButton:(PSMTabBarControl *)tabView;
+// (Fork) The “launch claude” button next to the collapse chevron was clicked;
+// open a new tab running the claude agentic CLI.
+- (void)tabViewDidClickClaudeButton:(PSMTabBarControl *)tabView;
 - (BOOL)tabViewShouldDragWindow:(NSTabView *)tabView event:(NSEvent *)event;
 - (BOOL)tabViewShouldAllowDragOnAddTabButton:(NSTabView *)tabView;
 - (CGFloat)tabViewDesiredTabBarHeight:(NSTabView *)tabView;

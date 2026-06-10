@@ -2215,7 +2215,7 @@ class FakeSession: NSObject, VT100ScreenDelegate {
 
     }
 
-    func screenSetHermesState(_ state: String) {
+    func screenSetAgentState(_ state: String) {
 
     }
 

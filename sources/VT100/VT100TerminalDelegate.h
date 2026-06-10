@@ -492,8 +492,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)terminalSetBadgeFormat:(NSString *)badge;
 - (void)terminalSetUserVar:(NSString *)kvp;
 - (void)terminalSetProfileProperty:(NSString *)kvp;
-// (Fork) OSC 1337 ; HermesState=working|idle (agentic-CLI busy/idle signal).
-- (void)terminalSetHermesState:(NSString *)state;
+// (Fork) OSC 1337 ; AgentState=working|idle (agentic-CLI busy/idle signal).
+- (void)terminalSetAgentState:(NSString *)state;
 
 - (BOOL)terminalFocusReportingAllowed;
 - (BOOL)terminalCursorVisible;

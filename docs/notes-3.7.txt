@@ -35,6 +35,14 @@ Major New Features:
   input. It is driven by an in-band escape
   code hermes emits, not a guess, so it is
   exact. See docs/hermes-state-detection.md.
+- (Fork) A sparkle button next to the robot
+  opens a new tab running the claude (Claude
+  Code) agent.
+- (Fork) claude tabs get the same working/idle
+  dot. claude can’t emit the escape code
+  itself, so iTerm reads its state from a
+  small side channel fed by claude’s own
+  hooks. See docs/claude-state-detection.md.
 - In the Jobs view (toolbelt and status bar
   popover) hovering a row shows the full
   command as a tooltip, and pressing space

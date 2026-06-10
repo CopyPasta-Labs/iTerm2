@@ -70,6 +70,7 @@ extern NSString *const PTYSessionArrangementOptionsLargeContentProvider;
 @class FakeWindow;
 @class PTYSessionSwiftState;
 @class iTermAction;
+@class iTermAgentStateChannel;
 @class iTermAnnouncementViewController;
 @class iTermAutomaticProfileSwitcher;
 @class iTermAutomaticProfileSwitchingSession;
@@ -317,8 +318,8 @@ typedef enum {
 - (void)sessionDidReportSelectedTmuxPane:(PTYSession *)session;
 - (void)sessionDidUpdatePaneTitle:(PTYSession *)session;
 - (void)sessionDidSetWindowTitle:(NSString *)title;
-// (Fork) The session’s hermes working/idle state changed.
-- (void)sessionHermesStateDidChange:(PTYSession *)session;
+// (Fork) The session’s agentic-CLI working/idle state changed.
+- (void)sessionAgentStateDidChange:(PTYSession *)session;
 - (void)sessionJobDidChange:(PTYSession *)session;
 - (void)sessionEditActions;
 - (void)sessionEditSnippets;
@@ -361,15 +362,16 @@ backgroundColor:(nullable NSColor *)backgroundColor;
 
 @class SessionView;
 
-// (Fork) Whether a hermes-style agentic CLI running in this session is busy.
-// Driven by an in-band OSC 1337 ; HermesState=working|idle escape code emitted
-// by the agent itself, so it reflects the agent’s real state rather than a
-// heuristic. iTermHermesStateUnknown means no such signal was ever received
-// (the common case for ordinary shells), so no indicator is shown.
-typedef NS_ENUM(NSInteger, iTermHermesState) {
-    iTermHermesStateUnknown = 0,
-    iTermHermesStateWorking,
-    iTermHermesStateIdle
+// (Fork) Whether an agentic CLI running in this session is busy. Driven either
+// by an in-band OSC 1337 ; AgentState=working|idle escape code the agent emits
+// (hermes), or by a side channel the terminal reads directly (claude), so it
+// reflects the agent’s real state rather than a heuristic. iTermAgentStateUnknown
+// means no such signal was ever received (the common case for ordinary shells),
+// so no indicator is shown.
+typedef NS_ENUM(NSInteger, iTermAgentState) {
+    iTermAgentStateUnknown = 0,
+    iTermAgentStateWorking,
+    iTermAgentStateIdle
 };
 
 @interface PTYSession : NSResponder <
@@ -386,8 +388,13 @@ typedef NS_ENUM(NSInteger, iTermHermesState) {
     VT100ScreenDelegate>
 @property(nonatomic, weak, nullable) id<PTYSessionDelegate> delegate;
 
-// (Fork) Latest hermes working/idle state reported via OSC 1337;HermesState.
-@property(nonatomic, readonly) iTermHermesState hermesState;
+// (Fork) Latest agentic-CLI working/idle state.
+@property(nonatomic, readonly) iTermAgentState agentState;
+
+// (Fork) Side channel that feeds agentState for an agent that can’t emit the
+// state code itself (e.g. claude, whose hooks are detached from the controlling
+// tty). Owned by the session so its FIFO is torn down when the tab closes.
+@property(nonatomic, strong, nullable) iTermAgentStateChannel *agentStateChannel;
 
 // A session is active when it's in a visible tab and it needs periodic redraws (something is
 // blinking, it isn't idle, etc), or when a background tab is updating its tab label. This controls

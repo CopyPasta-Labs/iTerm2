@@ -57,8 +57,8 @@ typedef NS_OPTIONS(NSUInteger, PTYTabState) {
 - (iTermVariables *)tabWindowVariables:(PTYTab *)tab;
 - (void)tabDidSetWindowTitle:(PTYTab *)tab to:(NSString *)title;
 - (void)tabHasNontrivialJobDidChange:(PTYTab *)tab;
-// (Fork) A session’s hermes working/idle state changed; redraw the tab’s dot.
-- (void)tabDidChangeHermesState:(PTYTab *)tab;
+// (Fork) A session’s agentic-CLI working/idle state changed; redraw the tab’s dot.
+- (void)tabDidChangeAgentState:(PTYTab *)tab;
 - (void)tabEditActions:(PTYTab *)tab;
 - (void)tabEditSnippets:(PTYTab *)tab;
 - (void)tab:(PTYTab *)tab

@@ -1894,11 +1894,11 @@ typedef struct {
     } name:@"set user var"];
 }
 
-- (void)terminalSetHermesState:(NSString *)state {
+- (void)terminalSetAgentState:(NSString *)state {
     DLog(@"begin %@", state);
     [self addSideEffect:^(id<VT100ScreenDelegate> delegate) {
-        [delegate screenSetHermesState:state];
-    } name:@"set hermes state"];
+        [delegate screenSetAgentState:state];
+    } name:@"set agent state"];
 }
 
 - (void)terminalResetColor:(VT100TerminalColorIndex)n {

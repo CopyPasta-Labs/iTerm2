@@ -143,6 +143,8 @@
 #import "iTermWindowShortcutLabelTitlebarAccessoryViewController.h"
 #include "iTermFileDescriptorClient.h"
 #import <QuartzCore/QuartzCore.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #import "iTerm2SharedARC-Swift.h"
@@ -232,6 +234,147 @@ typedef NS_ENUM(int, iTermShouldHaveTitleSeparator) {
     iTermShouldHaveTitleSeparatorYes = 1,
     iTermShouldHaveTitleSeparatorNo = 2
 };
+
+#pragma mark - Agent state channel (Fork)
+
+// (Fork) A private side channel that lets an agentic CLI which cannot write to
+// its own controlling terminal report working/idle state. Claude Code, for
+// example, runs its hooks in a detached session with no controlling tty, so a
+// hook cannot emit the OSC 1337 ; AgentState code the way hermes does. Instead
+// we create a private FIFO, hand its path to the agent in the
+// ITERM_AGENT_STATE_FIFO environment variable, and read newline-delimited
+// “working”/“idle” messages from it, invoking a handler on the main queue (which
+// drives PTYSession’s agentState and thus the tab’s status dot). The FIFO is
+// removed when the channel is released — it is owned by the session, so that
+// happens when the tab closes.
+@interface iTermAgentStateChannel : NSObject
+@property(nonatomic, readonly) NSString *fifoPath;
+// Creates and opens a private FIFO; returns nil on failure. handler is invoked
+// on the main queue with @"working" or @"idle" for each line read.
+- (instancetype)initWithHandler:(void (^)(NSString *state))handler;
+- (void)invalidate;
+@end
+
+@implementation iTermAgentStateChannel {
+    NSString *_dir;
+    NSString *_fifoPath;
+    int _fd;
+    dispatch_source_t _source;
+    void (^_handler)(NSString *);
+    NSMutableData *_buffer;
+    BOOL _invalidated;
+}
+
+- (instancetype)initWithHandler:(void (^)(NSString *))handler {
+    self = [super init];
+    if (!self) {
+        return nil;
+    }
+    _fd = -1;
+    _handler = [handler copy];
+    _buffer = [[NSMutableData alloc] init];
+
+    NSString *unique = [[NSProcessInfo processInfo] globallyUniqueString];
+    _dir = [[NSTemporaryDirectory() stringByAppendingPathComponent:
+                [@"iterm-agent-" stringByAppendingString:unique]] copy];
+    if (mkdir(_dir.fileSystemRepresentation, 0700) != 0) {
+        [self release];
+        return nil;
+    }
+    _fifoPath = [[_dir stringByAppendingPathComponent:@"state"] copy];
+    if (mkfifo(_fifoPath.fileSystemRepresentation, 0600) != 0) {
+        [self release];
+        return nil;
+    }
+    // O_RDWR keeps both a reader and a writer open, so the agent’s writes never
+    // block on “no reader” and we never see a spurious EOF as hooks open and
+    // close their write end. O_CLOEXEC so the launched agent can’t inherit it.
+    _fd = open(_fifoPath.fileSystemRepresentation, O_RDWR | O_NONBLOCK | O_CLOEXEC);
+    if (_fd < 0) {
+        [self release];
+        return nil;
+    }
+    _source = dispatch_source_create(DISPATCH_SOURCE_TYPE_READ, _fd, 0, dispatch_get_main_queue());
+    if (!_source) {
+        [self release];
+        return nil;
+    }
+    const int fd = _fd;
+    dispatch_source_set_cancel_handler(_source, ^{
+        close(fd);  // close only after the source has stopped monitoring the fd
+    });
+    __block __unsafe_unretained iTermAgentStateChannel *weakSelf = self;
+    dispatch_source_set_event_handler(_source, ^{
+        [weakSelf readAvailable];
+    });
+    dispatch_resume(_source);
+    return self;
+}
+
+- (NSString *)fifoPath {
+    return _fifoPath;
+}
+
+- (void)readAvailable {
+    char buf[256];
+    for (;;) {
+        const ssize_t n = read(_fd, buf, sizeof(buf));
+        if (n > 0) {
+            [_buffer appendBytes:buf length:n];
+        } else {
+            break;  // EAGAIN (no more data) or EOF — done draining for now
+        }
+    }
+    const char *bytes = _buffer.bytes;
+    const NSUInteger length = _buffer.length;
+    NSUInteger lineStart = 0;
+    for (NSUInteger i = 0; i < length; i++) {
+        if (bytes[i] != '\n') {
+            continue;
+        }
+        NSString *line = [[[NSString alloc] initWithBytes:bytes + lineStart
+                                                   length:i - lineStart
+                                                 encoding:NSUTF8StringEncoding] autorelease];
+        line = [line stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+        if (_handler && ([line isEqualToString:@"working"] || [line isEqualToString:@"idle"])) {
+            _handler(line);
+        }
+        lineStart = i + 1;
+    }
+    if (lineStart > 0) {
+        [_buffer replaceBytesInRange:NSMakeRange(0, lineStart) withBytes:NULL length:0];
+    }
+}
+
+- (void)invalidate {
+    if (_invalidated) {
+        return;
+    }
+    _invalidated = YES;
+    if (_source) {
+        dispatch_source_cancel(_source);  // the cancel handler closes _fd
+        dispatch_release(_source);
+        _source = NULL;
+    }
+    _fd = -1;
+    if (_fifoPath) {
+        unlink(_fifoPath.fileSystemRepresentation);
+    }
+    if (_dir) {
+        rmdir(_dir.fileSystemRepresentation);
+    }
+}
+
+- (void)dealloc {
+    [self invalidate];
+    [_dir release];
+    [_fifoPath release];
+    [_handler release];
+    [_buffer release];
+    [super dealloc];
+}
+
+@end
 
 @interface PseudoTerminal () <
     iTermBroadcastInputHelperDelegate,
@@ -8409,6 +8552,44 @@ static CGFloat iTermDimmingAmount(PSMTabBarControl *tabView) {
                     completion:nil];
 }
 
+// (Fork) The “launch claude” button in the left tab bar was clicked: open a new
+// tab running the claude (Claude Code) CLI. Claude Code can’t emit our OSC 1337 ;
+// AgentState code itself (its hooks are detached from the controlling tty and its
+// terminalSequence channel blocks OSC 1337), so we set up a private FIFO side
+// channel: its path is injected as ITERM_AGENT_STATE_FIFO, the user’s claude
+// hooks write “working”/“idle” to it, and we feed those straight into the
+// session’s agentState (and thus the tab dot). See docs/claude-state-detection.md.
+- (void)tabViewDidClickClaudeButton:(PSMTabBarControl *)tabView {
+    Profile *profile = [[ProfileModel sharedInstance] defaultBookmark];
+    if (!profile) {
+        return;
+    }
+    NSString *claudePath = [NSHomeDirectory() stringByAppendingPathComponent:@".local/bin/claude"];
+
+    __block PTYSession *createdSession = nil;
+    iTermAgentStateChannel *channel =
+        [[[iTermAgentStateChannel alloc] initWithHandler:^(NSString *state) {
+            [createdSession screenSetAgentState:state];
+        }] autorelease];
+
+    NSDictionary *environment = nil;
+    if (channel.fifoPath) {
+        environment = @{ @"ITERM_AGENT_STATE_FIFO": channel.fifoPath };
+    }
+    PTYSession *session = [self createTabWithProfile:profile
+                                         withCommand:claudePath
+                                         environment:environment
+                                            tabIndex:nil
+                                   previousDirectory:nil
+                                              parent:nil
+                                          completion:nil];
+    createdSession = session;
+    if (session && channel.fifoPath) {
+        session.agentStateChannel = channel;       // retained; FIFO torn down with the tab
+        [session screenSetAgentState:@"idle"];      // a fresh claude tab starts green
+    }
+}
+
 - (BOOL)themeSupportsAlternateDragModes {
     iTermPreferencesTabStyle preferredStyle = [iTermPreferences intForKey:kPreferenceKeyTabStyle];
     switch (preferredStyle) {
@@ -13328,8 +13509,8 @@ typedef NS_ENUM(NSUInteger, iTermBroadcastCommand) {
     [_contentView.tabBarControl setIsProcessing:isProcessing forTabWithIdentifier:tab];
 }
 
-- (void)tabDidChangeHermesState:(PTYTab *)tab {
-    // (Fork) The hermes working/idle dot is pulled from the tab via
+- (void)tabDidChangeAgentState:(PTYTab *)tab {
+    // (Fork) The agentic-CLI working/idle dot is pulled from the tab via
     // psmTabStatusColor at draw time, so a redraw is all that’s needed.
     [_contentView.tabBarControl setNeedsDisplay:YES];
 }
