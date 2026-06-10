@@ -252,11 +252,13 @@
         <key>CFBundleIconFile</key>
         <string>iTerm2.icns</string>
         <key>CFBundleIdentifier</key>
-        <string>com.googlecode.iterm2</string>
+        <string>com.copypastalabs.iterm2</string>
         <key>CFBundleInfoDictionaryVersion</key>
         <string>6.0</string>
+        <key>CFBundleDisplayName</key>
+        <string>CopyPasta Term</string>
         <key>CFBundleName</key>
-        <string>iTerm2</string>
+        <string>CopyPasta Term</string>
         <key>CFBundlePackageType</key>
         <string>APPL</string>
         <key>CFBundleShortVersionString</key>
@@ -397,6 +399,8 @@
         <string>iTermApplication</string>
         <key>SUPublicEDKey</key>
         <string>xdqAa0KXBPhMbUrutVTe87i6U7yWf7WKaCeRG7AAZ0w=</string>
+        <key>SUEnableAutomaticChecks</key>
+        <false/>
         <key>NSSupportsAutomaticGraphicsSwitching</key>
         <true/>
         <key>SUFeedURLForTesting</key>

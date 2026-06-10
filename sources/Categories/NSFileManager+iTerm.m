@@ -132,7 +132,7 @@ NSString * const DirectoryLocationDomain = @"DirectoryLocationDomain";
 //
 - (NSString *)applicationSupportDirectory {
     NSString *suiteName = [iTermUserDefaults customSuiteName];
-    NSString *executableName = suiteName ?: [[[NSBundle mainBundle] infoDictionary] objectForKey:(id)kCFBundleExecutableKey];
+    NSString *executableName = suiteName ?: [[NSBundle mainBundle] bundleIdentifier];
     NSError *error;
     DLog(@"Want app support directory");
     NSString *result = [self findOrCreateDirectory:NSApplicationSupportDirectory
@@ -158,7 +158,7 @@ NSString * const DirectoryLocationDomain = @"DirectoryLocationDomain";
 - (NSString *)applicationSupportDirectoryWithoutCreating {
     NSString *base = [NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES) lastObject];
     NSString *suiteName = [iTermUserDefaults customSuiteName];
-    NSString *appname = suiteName ?: [[NSBundle mainBundle] objectForInfoDictionaryKey:(NSString *)kCFBundleNameKey];
+    NSString *appname = suiteName ?: [[NSBundle mainBundle] bundleIdentifier];
     return [base stringByAppendingPathComponent:appname];
 }
 
@@ -189,7 +189,7 @@ NSString * const DirectoryLocationDomain = @"DirectoryLocationDomain";
     NSString *linkName = [self spacelessAppSupportWithoutCreatingLink];
 
     NSString *suiteName = [iTermUserDefaults customSuiteName];
-    NSString *executableName = suiteName ?: [[[NSBundle mainBundle] infoDictionary] objectForKey:(id)kCFBundleExecutableKey];
+    NSString *executableName = suiteName ?: [[NSBundle mainBundle] bundleIdentifier];
     NSString *realFolder = [realAppSupport stringByAppendingPathComponent:executableName];
 
     const BOOL created = [[NSFileManager defaultManager] createSymbolicLinkAtPath:linkName
@@ -368,7 +368,7 @@ NSString * const DirectoryLocationDomain = @"DirectoryLocationDomain";
 - (NSString *)_homeDirectoryDotDir {
     NSString *homedir = NSHomeDirectory();
     NSString *suiteName = [iTermUserDefaults customSuiteName];
-    NSString *baseName = suiteName ?: @"iterm2";
+    NSString *baseName = suiteName ?: [[NSBundle mainBundle] bundleIdentifier];
 
     __block NSString *xdgConfigHome = [homedir stringByAppendingPathComponent:@".config"];
     NSString *dotConfigDir = [xdgConfigHome stringByAppendingPathComponent:baseName];

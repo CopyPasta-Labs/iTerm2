@@ -22183,7 +22183,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.googlecode.iterm2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.copypastalabs.iterm2;
 				PRODUCT_NAME = iTerm2;
 				SDKROOT = macosx;
 				SWIFT_OBJC_BRIDGING_HEADER = "";
@@ -22265,7 +22265,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.googlecode.iterm2.applescript;
+				PRODUCT_BUNDLE_IDENTIFIER = com.copypastalabs.iterm2.applescript;
 				PRODUCT_NAME = iTerm2ForApplescriptTesting;
 				SDKROOT = macosx;
 				SECTORDER_FLAGS = "";
@@ -22339,7 +22339,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.googlecode.iterm2.applescript;
+				PRODUCT_BUNDLE_IDENTIFIER = com.copypastalabs.iterm2.applescript;
 				PRODUCT_NAME = iTerm2ForApplescriptTesting;
 				SDKROOT = macosx;
 				SWIFT_VERSION = 5.0;
@@ -22411,7 +22411,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.googlecode.iterm2.applescript;
+				PRODUCT_BUNDLE_IDENTIFIER = com.copypastalabs.iterm2.applescript;
 				PRODUCT_NAME = iTerm2ForApplescriptTesting;
 				SDKROOT = macosx;
 				SWIFT_VERSION = 5.0;
@@ -22882,7 +22882,7 @@
 				OTHER_CFLAGS = "-DSANDBOXED_WORKER";
 				OTHER_CODE_SIGN_FLAGS = "";
 				OTHER_LDFLAGS = "";
-				PRODUCT_BUNDLE_IDENTIFIER = "com.iterm2.sandboxed-worker";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.copypastalabs.iterm2.sandboxed-worker";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -22957,7 +22957,7 @@
 				MTL_FAST_MATH = YES;
 				OTHER_CFLAGS = "-DSANDBOXED_WORKER";
 				OTHER_LDFLAGS = "";
-				PRODUCT_BUNDLE_IDENTIFIER = "com.iterm2.sandboxed-worker";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.copypastalabs.iterm2.sandboxed-worker";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -23031,7 +23031,7 @@
 				MTL_FAST_MATH = YES;
 				OTHER_CFLAGS = "-DSANDBOXED_WORKER";
 				OTHER_LDFLAGS = "";
-				PRODUCT_BUNDLE_IDENTIFIER = "com.iterm2.sandboxed-worker";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.copypastalabs.iterm2.sandboxed-worker";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -23105,7 +23105,7 @@
 				MTL_FAST_MATH = YES;
 				OTHER_CFLAGS = "-DSANDBOXED_WORKER";
 				OTHER_LDFLAGS = "";
-				PRODUCT_BUNDLE_IDENTIFIER = "com.iterm2.sandboxed-worker";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.copypastalabs.iterm2.sandboxed-worker";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -23470,7 +23470,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.googlecode.iterm2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.copypastalabs.iterm2;
 				PRODUCT_NAME = iTerm2;
 				SDKROOT = macosx;
 				SWIFT_OBJC_BRIDGING_HEADER = "";
@@ -23669,7 +23669,7 @@
 					"-licucore",
 					"-ObjC",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.googlecode.iterm2.applescript;
+				PRODUCT_BUNDLE_IDENTIFIER = com.copypastalabs.iterm2.applescript;
 				PRODUCT_NAME = iTerm2ForApplescriptTesting;
 				SDKROOT = macosx;
 				SWIFT_VERSION = 5.0;
@@ -24482,7 +24482,7 @@
 					"-lz",
 					$PROJECT_DIR/ThirdParty/libgit2/lib/libgit2.a,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.iterm2.pidinfo;
+				PRODUCT_BUNDLE_IDENTIFIER = com.copypastalabs.iterm2.pidinfo;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -24562,7 +24562,7 @@
 					"-lz",
 					$PROJECT_DIR/ThirdParty/libgit2/lib/libgit2.a,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.iterm2.pidinfo;
+				PRODUCT_BUNDLE_IDENTIFIER = com.copypastalabs.iterm2.pidinfo;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -24642,7 +24642,7 @@
 					"-lz",
 					$PROJECT_DIR/ThirdParty/libgit2/lib/libgit2.a,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.iterm2.pidinfo;
+				PRODUCT_BUNDLE_IDENTIFIER = com.copypastalabs.iterm2.pidinfo;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -24722,7 +24722,7 @@
 					"-lz",
 					$PROJECT_DIR/ThirdParty/libgit2/lib/libgit2.a,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.iterm2.pidinfo;
+				PRODUCT_BUNDLE_IDENTIFIER = com.copypastalabs.iterm2.pidinfo;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -25147,7 +25147,7 @@
 				ONLY_ACTIVE_ARCH = YES;
 				OTHER_CODE_SIGN_FLAGS = "";
 				OTHER_LDFLAGS = "";
-				PRODUCT_BUNDLE_IDENTIFIER = com.googlecode.iterm2.iTerm2ImportStatus;
+				PRODUCT_BUNDLE_IDENTIFIER = com.copypastalabs.iterm2.iTerm2ImportStatus;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
@@ -25221,7 +25221,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				OTHER_LDFLAGS = "";
-				PRODUCT_BUNDLE_IDENTIFIER = com.googlecode.iterm2.iTerm2ImportStatus;
+				PRODUCT_BUNDLE_IDENTIFIER = com.copypastalabs.iterm2.iTerm2ImportStatus;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SWIFT_COMPILATION_MODE = wholemodule;
@@ -25295,7 +25295,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				OTHER_LDFLAGS = "";
-				PRODUCT_BUNDLE_IDENTIFIER = com.googlecode.iterm2.iTerm2ImportStatus;
+				PRODUCT_BUNDLE_IDENTIFIER = com.copypastalabs.iterm2.iTerm2ImportStatus;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SWIFT_COMPILATION_MODE = wholemodule;
@@ -25369,7 +25369,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				OTHER_LDFLAGS = "";
-				PRODUCT_BUNDLE_IDENTIFIER = com.googlecode.iterm2.iTerm2ImportStatus;
+				PRODUCT_BUNDLE_IDENTIFIER = com.copypastalabs.iterm2.iTerm2ImportStatus;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SWIFT_COMPILATION_MODE = wholemodule;
@@ -26230,7 +26230,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.googlecode.iterm2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.copypastalabs.iterm2;
 				PRODUCT_NAME = iTerm2;
 				SDKROOT = macosx;
 				SECTORDER_FLAGS = "";
@@ -26322,7 +26322,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.googlecode.iterm2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.copypastalabs.iterm2;
 				PRODUCT_NAME = iTerm2;
 				SDKROOT = macosx;
 				SWIFT_OBJC_BRIDGING_HEADER = "";

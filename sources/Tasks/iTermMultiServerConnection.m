@@ -288,7 +288,7 @@
     NSString *homedir = NSHomeDirectory();
     NSString *dotdirName = suiteName
         ? [NSString stringWithFormat:@".%@", suiteName]
-        : @".iterm2";
+        : [@"." stringByAppendingString:[[NSBundle mainBundle] bundleIdentifier]];
     NSString *dotdir = [homedir stringByAppendingPathComponent:dotdirName];
     NSString *shortFilename = [NSString stringWithFormat:@"%d.socket", number];
     NSURL *shortURL = [[NSURL fileURLWithPath:dotdir] URLByAppendingPathComponent:shortFilename];

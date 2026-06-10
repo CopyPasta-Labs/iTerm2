@@ -17,7 +17,7 @@
         if (sSandboxedWorkerConnection) {
             return sSandboxedWorkerConnection;
         }
-        sSandboxedWorkerConnection = [[NSXPCConnection alloc] initWithServiceName:@"com.iterm2.sandboxed-worker"];
+        sSandboxedWorkerConnection = [[NSXPCConnection alloc] initWithServiceName:@"com.copypastalabs.iterm2.sandboxed-worker"];
         if (!sSandboxedWorkerConnection) {
             return nil;
         }

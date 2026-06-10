@@ -1428,3 +1428,15 @@ Bug Fixes:
   Notify-on-status-change now works
   whether or not the Session Status
   toolbelt tool is open.
+- The fork is now a standalone app. It
+  has its own bundle id,
+  com.copypastalabs.iterm2, so it no
+  longer shares preferences or files
+  with a normally installed iTerm2, and
+  shows as “CopyPasta Term.” Launched
+  without -suite it keeps its own
+  Application Support and dot
+  directories and its own prefs domain.
+  Automatic update checks are disabled
+  so it can’t replace itself with the
+  upstream iTerm2.

@@ -86,7 +86,7 @@ typedef void (^iTermRecentBranchFetchCallback)(NSArray<NSString *> *);
 }
 
 - (void)connect {
-    _connectionToService = [[NSXPCConnection alloc] initWithServiceName:@"com.iterm2.pidinfo"];
+    _connectionToService = [[NSXPCConnection alloc] initWithServiceName:@"com.copypastalabs.iterm2.pidinfo"];
     _connectionToService.remoteObjectInterface = [NSXPCInterface interfaceWithProtocol:@protocol(pidinfoProtocol)];
     [_connectionToService resume];
 
