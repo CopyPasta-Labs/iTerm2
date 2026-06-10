@@ -1456,3 +1456,13 @@ Bug Fixes:
   transcript once it goes idle. Same
   shared round-trip as hermes_send. See
   the bake-off in docs/claude-messaging.md.
+- The claude tab’s status dot now has a
+  third, amber state: claude is mid-turn
+  but blocked on you (a permission
+  prompt). The dot un-sticks to idle if a
+  turn is interrupted (claude fires no
+  Stop hook on Ctrl-C), agent tabs are no
+  longer restored on relaunch, and the
+  fork uses only its own FIFO dot — it no
+  longer auto-offers the heavier upstream
+  cc-status integration.

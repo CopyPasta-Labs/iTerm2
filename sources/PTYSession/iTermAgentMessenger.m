@@ -46,8 +46,10 @@ static const NSTimeInterval iTermAgentRoundTripTimeout = 240.0;
         DLog(@"%@: refused send — a round-trip is already in flight", self.agentName);
         return NO;
     }
-    if ([_lastState isEqualToString:@"working"]) {
-        DLog(@"%@: refused send — the agent is mid-turn", self.agentName);
+    if ([_lastState isEqualToString:@"working"] || [_lastState isEqualToString:@"waiting"]) {
+        // working = mid-turn; waiting = blocked on a permission prompt, where
+        // injected text would not answer the prompt. Either way, don’t send.
+        DLog(@"%@: refused send — the agent is busy (%@)", self.agentName, _lastState);
         return NO;
     }
     _pendingMessage = [message copy];

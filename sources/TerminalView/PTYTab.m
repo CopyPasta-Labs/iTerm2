@@ -1305,13 +1305,16 @@ static void SetAgainstGrainDim(BOOL isVertical, NSSize *dest, CGFloat value) {
 }
 
 // (Fork) Red while the active session’s agentic CLI (hermes or claude) is
-// working, green while it is idle and waiting for input. Nil — no dot — when no
-// such signal has been seen (ordinary shells), so the dot is scoped to agent
-// tabs automatically.
+// working, amber while it is mid-turn but blocked on the user (a claude
+// permission prompt), green while it is idle and waiting for input. Nil — no dot
+// — when no such signal has been seen (ordinary shells), so the dot is scoped to
+// agent tabs automatically.
 - (NSColor *)psmTabStatusColor {
     switch (self.activeSession.agentState) {
         case iTermAgentStateWorking:
             return [NSColor systemRedColor];
+        case iTermAgentStateWaiting:
+            return [NSColor systemOrangeColor];
         case iTermAgentStateIdle:
             return [NSColor systemGreenColor];
         case iTermAgentStateUnknown:

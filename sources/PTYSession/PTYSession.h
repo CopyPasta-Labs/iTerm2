@@ -371,7 +371,10 @@ backgroundColor:(nullable NSColor *)backgroundColor;
 typedef NS_ENUM(NSInteger, iTermAgentState) {
     iTermAgentStateUnknown = 0,
     iTermAgentStateWorking,
-    iTermAgentStateIdle
+    iTermAgentStateIdle,
+    // (Fork) Amber — the agent is mid-turn but blocked on the user (e.g. claude
+    // sitting on a permission prompt). A “needs-you” signal between working and idle.
+    iTermAgentStateWaiting
 };
 
 @interface PTYSession : NSResponder <
@@ -395,6 +398,17 @@ typedef NS_ENUM(NSInteger, iTermAgentState) {
 // state code itself (e.g. claude, whose hooks are detached from the controlling
 // tty). Owned by the session so its FIFO is torn down when the tab closes.
 @property(nonatomic, strong, nullable) iTermAgentStateChannel *agentStateChannel;
+
+// (Fork) YES if this session was launched as an ephemeral agent tab from a tab-bar
+// launch button (claude/hermes). Such tabs can’t be meaningfully restored — the
+// agent process is gone and claude’s FIFO path is stale — so they are excluded
+// from saved window arrangements and macOS system restoration.
+@property(nonatomic) BOOL agentLaunched;
+
+// (Fork) Reset the agent dot to idle when its side channel has gone silent too
+// long while working/waiting (e.g. a claude turn interrupted with no Stop hook).
+// Dot-only: it does not complete an in-flight programmatic round-trip.
+- (void)agentStateBackstopToIdle;
 
 // (Fork) Send a message to a hermes agent running in this session and read its
 // reply back once the agent goes idle. The message is injected into the live pty

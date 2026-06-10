@@ -14679,15 +14679,18 @@ typedef NS_ENUM(NSUInteger, PTYSessionTmuxReport) {
 }
 
 - (void)screenSetAgentState:(NSString *)state {
-    // (Fork) Map a working|idle signal — from the agent’s in-band OSC 1337 code
-    // or from a side channel the terminal reads directly — onto a typed
+    // (Fork) Map a working|waiting|idle signal — from the agent’s in-band OSC 1337
+    // code or from a side channel the terminal reads directly — onto a typed
     // per-session state. Unknown values are ignored so a stray code can’t clear
-    // the indicator.
+    // the indicator. “waiting” is the amber, blocked-on-the-user state (claude
+    // permission prompts); hermes only ever emits working/idle.
     iTermAgentState newState;
     if ([state isEqualToString:@"working"]) {
         newState = iTermAgentStateWorking;
     } else if ([state isEqualToString:@"idle"]) {
         newState = iTermAgentStateIdle;
+    } else if ([state isEqualToString:@"waiting"]) {
+        newState = iTermAgentStateWaiting;
     } else {
         return;
     }
@@ -14700,6 +14703,20 @@ typedef NS_ENUM(NSUInteger, PTYSessionTmuxReport) {
     // paints the tab dot. Only the messenger for this tab’s agent is non-nil.
     [_hermesMessenger agentStateDidChange:state];
     [_claudeMessenger agentStateDidChange:state];
+}
+
+// (Fork) Best-effort dot reset when the agent’s side channel goes silent for too
+// long while working/waiting — e.g. a claude turn interrupted with Ctrl-C/Esc,
+// which fires no Stop hook (see docs/claude-state-detection.md). It repaints the
+// tab dot green but deliberately does NOT notify the messengers: a programmatic
+// round-trip must be completed only by a real idle edge (it has its own timeout),
+// never by this synthetic one, so a partial reply can’t be read mid-turn.
+- (void)agentStateBackstopToIdle {
+    if (_agentState == iTermAgentStateIdle) {
+        return;
+    }
+    _agentState = iTermAgentStateIdle;
+    [self.delegate sessionAgentStateDidChange:self];
 }
 
 - (void)sendHermesMessage:(NSString *)message

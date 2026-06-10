@@ -249,29 +249,46 @@ typedef NS_ENUM(int, iTermShouldHaveTitleSeparator) {
 // happens when the tab closes.
 @interface iTermAgentStateChannel : NSObject
 @property(nonatomic, readonly) NSString *fifoPath;
-// Creates and opens a private FIFO; returns nil on failure. handler is invoked
-// on the main queue with @"working" or @"idle" for each line read.
-- (instancetype)initWithHandler:(void (^)(NSString *state))handler;
+// Creates and opens a private FIFO; returns nil on failure. stateHandler is
+// invoked on the main queue with @"working", @"waiting", or @"idle" for each line
+// read. idleBackstop is invoked on the main queue if the agent stays
+// working/waiting with no further line for iTermAgentIdleBackstopTimeout seconds —
+// a best-effort dot reset for a turn that ended without an idle line.
+- (instancetype)initWithHandler:(void (^)(NSString *state))stateHandler
+                   idleBackstop:(void (^)(void))idleBackstop;
 - (void)invalidate;
 @end
+
+// (Fork) If an agent sits in working/waiting this long with no further FIFO line,
+// reset its dot to idle. claude emits no Stop hook on a Ctrl-C/Esc interrupt
+// (confirmed by `tests/claude_state_probe.py interrupt`), so without this the dot
+// could stay red until the next turn ends. Generous on purpose: a single silent
+// tool (a long build) or a long no-tool answer also produces no line, and we’d
+// rather lag than flip a genuinely busy agent to idle. Dot-only — it never
+// completes a programmatic round-trip, which has its own timeout.
+static const NSTimeInterval iTermAgentIdleBackstopTimeout = 120.0;
 
 @implementation iTermAgentStateChannel {
     NSString *_dir;
     NSString *_fifoPath;
     int _fd;
     dispatch_source_t _source;
+    dispatch_source_t _idleTimer;
     void (^_handler)(NSString *);
+    void (^_backstopHandler)(void);
     NSMutableData *_buffer;
     BOOL _invalidated;
 }
 
-- (instancetype)initWithHandler:(void (^)(NSString *))handler {
+- (instancetype)initWithHandler:(void (^)(NSString *))stateHandler
+                   idleBackstop:(void (^)(void))idleBackstop {
     self = [super init];
     if (!self) {
         return nil;
     }
     _fd = -1;
-    _handler = [handler copy];
+    _handler = [stateHandler copy];
+    _backstopHandler = [idleBackstop copy];
     _buffer = [[NSMutableData alloc] init];
 
     NSString *unique = [[NSProcessInfo processInfo] globallyUniqueString];
@@ -336,7 +353,16 @@ typedef NS_ENUM(int, iTermShouldHaveTitleSeparator) {
                                                    length:i - lineStart
                                                  encoding:NSUTF8StringEncoding] autorelease];
         line = [line stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
-        if (_handler && ([line isEqualToString:@"working"] || [line isEqualToString:@"idle"])) {
+        if (_handler && ([line isEqualToString:@"working"] ||
+                         [line isEqualToString:@"waiting"] ||
+                         [line isEqualToString:@"idle"])) {
+            // (Fork) Re-arm the idle backstop on every working/waiting line
+            // (including PreToolUse/PostToolUse heartbeats); disarm on a real idle.
+            if ([line isEqualToString:@"idle"]) {
+                [self disarmIdleBackstop];
+            } else {
+                [self armIdleBackstop];
+            }
             _handler(line);
         }
         lineStart = i + 1;
@@ -346,11 +372,54 @@ typedef NS_ENUM(int, iTermShouldHaveTitleSeparator) {
     }
 }
 
+// (Fork) Idle backstop: a one-shot main-queue timer, (re)scheduled on each
+// working/waiting line and pushed out of reach on idle. If it fires, the agent has
+// gone silent too long (e.g. an interrupted turn that emitted no Stop) — reset the
+// dot via the dedicated backstop handler. See iTermAgentIdleBackstopTimeout.
+- (void)armIdleBackstop {
+    if (_invalidated || !_backstopHandler) {
+        return;
+    }
+    if (!_idleTimer) {
+        _idleTimer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0,
+                                            dispatch_get_main_queue());
+        __block __unsafe_unretained iTermAgentStateChannel *weakSelf = self;
+        dispatch_source_set_event_handler(_idleTimer, ^{
+            [weakSelf idleBackstopFired];
+        });
+        dispatch_resume(_idleTimer);
+    }
+    dispatch_source_set_timer(_idleTimer,
+                              dispatch_time(DISPATCH_TIME_NOW,
+                                            (int64_t)(iTermAgentIdleBackstopTimeout * NSEC_PER_SEC)),
+                              DISPATCH_TIME_FOREVER,  // one-shot until re-armed
+                              (uint64_t)(NSEC_PER_SEC));
+}
+
+- (void)disarmIdleBackstop {
+    if (_idleTimer) {
+        // Push the next fire out of reach; cheaper than tearing the source down.
+        dispatch_source_set_timer(_idleTimer, DISPATCH_TIME_FOREVER, DISPATCH_TIME_FOREVER, 0);
+    }
+}
+
+- (void)idleBackstopFired {
+    [self disarmIdleBackstop];
+    if (!_invalidated && _backstopHandler) {
+        _backstopHandler();
+    }
+}
+
 - (void)invalidate {
     if (_invalidated) {
         return;
     }
     _invalidated = YES;
+    if (_idleTimer) {
+        dispatch_source_cancel(_idleTimer);
+        dispatch_release(_idleTimer);
+        _idleTimer = NULL;
+    }
     if (_source) {
         dispatch_source_cancel(_source);  // the cancel handler closes _fd
         dispatch_release(_source);
@@ -370,6 +439,7 @@ typedef NS_ENUM(int, iTermShouldHaveTitleSeparator) {
     [_dir release];
     [_fifoPath release];
     [_handler release];
+    [_backstopHandler release];
     [_buffer release];
     [super dealloc];
 }
@@ -4169,6 +4239,15 @@ ITERM_WEAKLY_REFERENCEABLE
         }
         if (excludeTmux && theTab.isTmuxTab) {
             return NO;
+        }
+        // (Fork) An ephemeral agent tab (claude/hermes launch button) can’t be
+        // meaningfully restored — its agent process is gone and claude’s FIFO
+        // path is stale — so keep it out of both saved arrangements and macOS
+        // system restoration (this method is the single chokepoint for both).
+        for (PTYSession *session in theTab.sessions) {
+            if (session.agentLaunched) {
+                return NO;
+            }
         }
         return YES;
     }];
@@ -8543,13 +8622,14 @@ static CGFloat iTermDimmingAmount(PSMTabBarControl *tabView) {
         return;
     }
     NSString *hermesPath = [NSHomeDirectory() stringByAppendingPathComponent:@".local/bin/hermes"];
-    [self createTabWithProfile:profile
-                   withCommand:hermesPath
-                   environment:nil
-                      tabIndex:nil
-             previousDirectory:nil
-                        parent:nil
-                    completion:nil];
+    PTYSession *session = [self createTabWithProfile:profile
+                                         withCommand:hermesPath
+                                         environment:nil
+                                            tabIndex:nil
+                                   previousDirectory:nil
+                                              parent:nil
+                                          completion:nil];
+    session.agentLaunched = YES;  // (Fork) ephemeral agent tab — not restorable
 }
 
 // (Fork) The “launch claude” button in the left tab bar was clicked: open a new
@@ -8570,6 +8650,8 @@ static CGFloat iTermDimmingAmount(PSMTabBarControl *tabView) {
     iTermAgentStateChannel *channel =
         [[[iTermAgentStateChannel alloc] initWithHandler:^(NSString *state) {
             [createdSession screenSetAgentState:state];
+        } idleBackstop:^{
+            [createdSession agentStateBackstopToIdle];
         }] autorelease];
 
     NSDictionary *environment = nil;
@@ -8584,6 +8666,7 @@ static CGFloat iTermDimmingAmount(PSMTabBarControl *tabView) {
                                               parent:nil
                                           completion:nil];
     createdSession = session;
+    session.agentLaunched = YES;  // (Fork) ephemeral agent tab — not restorable
     if (session && channel.fifoPath) {
         session.agentStateChannel = channel;       // retained; FIFO torn down with the tab
         [session screenSetAgentState:@"idle"];      // a fresh claude tab starts green

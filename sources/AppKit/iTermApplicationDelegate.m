@@ -1647,8 +1647,19 @@ void TurnOnDebugLoggingAutomatically(void) {
             [iTermClaudeCodeOnboarding ensureCCStatusSymlink];
         }
     }
-    [iTermClaudeWatcher start];
-    [[iTermClaudeIntegrationHealthMonitor instance] start];
+    // (Fork) This fork has its own, lighter Claude status mechanism — the
+    // per-session FIFO that drives the working/waiting/idle tab dot (see
+    // docs/claude-state-detection.md). The FIFO is the single source of truth for
+    // agent status here, so we deliberately do NOT auto-offer or auto-heal the
+    // upstream cc-status → it2 → API-socket integration: ClaudeWatcher (the
+    // 3-session nag to install cc-status hooks) and the integration health monitor
+    // (which reinstalls those hooks if claude rewrites settings.json) would
+    // redundantly drive status and require the Python API. Both stay reachable for
+    // anyone who wants them via iTerm2 ▸ Install Claude Code Integration; we just
+    // don’t push them. The workgroup mode controller is orthogonal (it isn’t about
+    // status), so it keeps running.
+    // [iTermClaudeWatcher start];
+    // [[iTermClaudeIntegrationHealthMonitor instance] start];
     [iTermClaudeCodeModeController start];
     if (_workgroupsMenuItem) {
         [iTermWorkgroupMenu attachTo:_workgroupsMenuItem

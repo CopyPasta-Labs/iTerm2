@@ -238,6 +238,11 @@ boots straight to the prompt without the workspace-trust dialog.
   its own newlines. A change to either would need a different submit strategy. (The
   bake-off harness already wrote the text and the CR as separate writes, which is
   why it didn’t surface this — the in-app path had to match it.)
+- **Permission prompts.** Mid-turn, claude’s `PermissionRequest` hook now drives an
+  amber `waiting` state. The round-trip ignores it for the working→idle edge (so a
+  send that hits a permission prompt waits correctly through to the eventual idle),
+  and a new send is refused while the agent is working *or* waiting — injected text
+  wouldn’t answer the prompt anyway.
 - **No programmatic way to open a claude tab yet.** The working/idle FIFO is wired
   only by the sparkle (Claude) button, so a claude tab can’t be created from
   AppleScript / the API the way a hermes tab can (hermes is in-band). A built-in
@@ -246,5 +251,7 @@ boots straight to the prompt without the workspace-trust dialog.
 - **Large transcripts.** The reader scans whole transcript files touched since the
   send; a cheap `"user"` pre-filter keeps this fast, and the reply usually lands on
   the first poll. A byte-offset tail read is the optimization if it ever matters.
-- **Window restoration** of a claude tab is the same follow-up class as elsewhere:
-  the messenger is per-session and not re-created on restore.
+- **Window restoration** is now moot for a claude tab: an ✦-launched agent tab is
+  excluded from saved arrangements and macOS system restoration (it can’t be
+  meaningfully restored — agent gone, FIFO path stale), so there is no half-restored
+  tab with a missing messenger to worry about.
